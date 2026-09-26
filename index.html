@@ -6067,10 +6067,7 @@ function setPose(state, dur, to) { combat.from = combat.cur.slice(); combat.to =
 function combatDown(button) {
   if (game.dead || dlg || player.mode !== 'walk') return;
   if (button === 2) { combat.blocking = true; combat.blockT0 = simTime; setPose('block', 0.12, POSE.block); return; }
-  const person = talkTarget();
-  if (person) { openDialog(person); return; }
-  const pr = curPrompt;
-  if (pr) { useDoor(pr); return; }
+  // a click always swings: talking and doors are E, so anyone within reach can be struck
   if (combat.state !== 'idle' && combat.state !== 'recover') return;
   combat.holding = true; combat.holdT = 0;
   setPose('ready', 0.12, POSE.windup);
