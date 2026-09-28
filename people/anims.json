@@ -1,0 +1,59 @@
+{
+ "walk": {
+  "stride": 1.577,
+  "dur": 1.1
+ },
+ "walkslow": {
+  "stride": 1.403,
+  "dur": 1.433
+ },
+ "run": {
+  "stride": 2.547,
+  "dur": 0.733
+ },
+ "march": {
+  "stride": 1.336,
+  "dur": 1.367
+ },
+ "idle": {
+  "stride": 0.0,
+  "dur": 6.567
+ },
+ "talk": {
+  "stride": 0.0,
+  "dur": 6.5
+ },
+ "sit": {
+  "stride": 0.0,
+  "dur": 3.067
+ },
+ "kneel": {
+  "stride": 0.0,
+  "dur": 1.633
+ },
+ "sweep": {
+  "stride": 0.0,
+  "dur": 3.233
+ },
+ "drink": {
+  "stride": 0.0,
+  "dur": 4.667
+ },
+ "laugh": {
+  "stride": 0.0,
+  "dur": 4.133
+ },
+ "wave": {
+  "stride": 0.0,
+  "dur": 3.233
+ },
+ "dance": {
+  "stride": 0.0,
+  "dur": 3.1
+ },
+ "_rig": {
+  "hipsZ": 0.9233,
+  "hipsY": -0.0033,
+  "legs": 0.8528
+ }
+}

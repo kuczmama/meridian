@@ -204,13 +204,21 @@ Opening `index.html` directly from disk won't work, because the terrain workers 
 - **World generation:** a pure, seeded `WorldGen` handles noise, climate, rivers, settlements, and A*-routed roads. It runs on a pool of Web Workers built from blob URLs, with a main-thread fallback.
 - **People:** jointed, vertex-coloured figures merged per bone for speed, with procedural animation covering walking, work, sitting, praying, dancing, and a full set of combat poses.
 - **AI:** WebLLM runs in its own worker so it never blocks the game. Kokoro TTS output is streamed clause by clause, so voices start quickly.
-- **Everything is procedural:** there are no image or model assets beyond generated canvas textures.
+- **People:** near you, townsfolk are real bodies generated with [MakeHuman](http://www.makehumancommunity.org/) and dressed in medieval clothes tailored to each body, moved by motion capture from the [CMU Graphics Lab Motion Capture Database](http://mocap.cs.cmu.edu/) (walking, running, idling, talking, sitting, kneeling, sweeping and dancing), with every other action carried over from the jointed figures, which still fill the distance.
+- **Everything else is procedural:** the world, buildings and animals are generated in code, with canvas textures.
 
 ```
 index.html          the whole game
-vendor/three/       three.js and the post-processing passes it uses
+people/             townsfolk bodies (glTF, meshopt-compressed), shared motion clips and their textures
+vendor/three/       three.js, its glTF loader and the post-processing passes it uses
 docs/screenshots/   images for this README
 ```
+
+### Credits
+
+- Human bodies, skins, eyes, eyebrows, eyelashes and hair: [MakeHuman](http://www.makehumancommunity.org/) core assets, released under [CC0](https://creativecommons.org/publicdomain/zero/1.0/). Bodies were generated and rigged with MPFB; the clothes are made for this game.
+- Motion capture: the [CMU Graphics Lab Motion Capture Database](http://mocap.cs.cmu.edu/), in Bruce Hahne's BVH conversion. The database was created with funding from NSF EIA-0196217, and its data may be freely used, modified and redistributed.
+- [three.js](https://threejs.org/) (MIT) and [meshoptimizer](https://github.com/zeux/meshoptimizer)'s decoder (MIT).
 
 ---
 
