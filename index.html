@@ -18873,4 +18873,2310 @@ animatePerson = function (a, dt) {
 const _toolMH = tool;
 tool = function (a, name) { const r = _toolMH(a, name); if (a.mh) mhHomeTools(a, a.mh); return r; };
 /* ==== REAL PEOPLE END ==== */
+/* ==== INTERIORS II BEGIN ==== */
+/* =====================================================================
+   INTERIORS II: every house its own. Scanned CC0 furniture and props (Poly Haven), photographed PBR surfaces,
+   public-domain paintings (The Met), a floor plan per household with its rooms, doors and stairs, walls finished
+   room by room, and a home that shows who lives there: how rich, how tidy, their trade, their tastes.
+   ===================================================================== */
+const IX = { tex: new Map(), mats: new Map(), man: null, art: null, glb: new Map(), wait: new Map(), loader: null, pendingHouses: new Set(), ver: 0 };
+const IX_TL = new THREE.TextureLoader();
+// metres covered by one repeat of each photographed surface
+const IX_SIZE = { default: 2.0, bamboo_wall: 1.5, beam_wall_01: 2.2, brick_wall_001: 1.4, red_brick: 1.3, whitewashed_brick: 1.4, painted_brick: 1.4, brown_leather: 0.6, caban: 0.5, floral_jacquard: 0.6, gingham_check: 0.35, hessian_230: 0.4,
+  quatrefoil_jacquard_fabric: 0.5, rough_linen: 0.5, velour_velvet: 0.5, waffle_pique_cotton: 0.4, poly_wool_herringbone: 0.5, floor_tiles_06: 1.2, interior_tiles: 1.0, marble_01: 1.8, terracotta_floor_tiles: 1.6, patterned_terracotta_tiling: 1.2,
+  herringbone_parquet: 1.1, diagonal_parquet: 1.4, rectangular_parquet: 1.4, tatami_mat: 1.8, dark_paneled_wood: 1.3, wooden_panels: 1.6, large_square_pattern_01: 1.6, mixed_stone_tiles: 1.2, stone_tiles: 1.6, square_brick_floor: 1.2, worn_brick_floor: 1.4, herringbone_brick_02: 1.2,
+  dark_wood: 1.0, fine_grained_wood: 1.0, oak_veneer_01: 1.0, black_walnut_veneer_01: 1.0, lacquered_cherry_wood: 1.0, stained_pine: 1.2, kitchen_wood: 1.2, wood_table_001: 1.2, medieval_wood: 1.5, wood_cabinet_worn_long: 1.4, blue_painted_planks: 1.6, distressed_painted_planks: 1.6, green_rough_planks: 1.6,
+  medieval_blocks_03: 2.6, old_stone_wall: 2.4, stone_wall: 2.4, patterned_clay_wall: 2.2, clay_block_wall: 2.0, hinoki_planks: 1.6, japanese_cedar_planks: 1.6, white_planks_clean: 1.8, raw_plank_wall: 2.0, peeling_painted_wall: 2.2, plastered_wall: 2.4, white_stucco: 2.4, patterned_plaster_wall: 2.0, blue_plaster_weathered: 2.4 };
+function ixTex(name, ch) {
+  const k = name + '_' + ch;
+  let t = IX.tex.get(k);
+  if (!t) {
+    t = IX_TL.load(`interiors/tex/${k}.webp`);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8;
+    if (ch === 'c') t.colorSpace = THREE.SRGBColorSpace;
+    const s = 1 / (IX_SIZE[name] || IX_SIZE.default); t.repeat.set(s, s);
+    IX.tex.set(k, t);
+  }
+  return t;
+}
+// a photographed surface; the geometry carries its UVs in metres, so one material fits every size of thing
+function pbr(name, o = {}) {
+  const key = name + '|' + (o.tint ?? '') + '|' + (o.rough ?? '') + '|' + (o.side ?? '') + '|' + (o.ns ?? '') + '|' + (o.metal ?? '') + '|' + (o.emis ?? '');
+  let m = IX.mats.get(key);
+  if (m) return m;
+  const r = ixTex(name, 'r');
+  m = new THREE.MeshStandardMaterial({ map: ixTex(name, 'c'), normalMap: ixTex(name, 'n'), roughnessMap: r, aoMap: r, aoMapIntensity: 0.7, roughness: o.rough ?? 1, metalness: o.metal ?? 0, color: o.tint ?? 0xffffff, side: o.side ?? THREE.FrontSide });
+  const ns = o.ns ?? 1; m.normalScale.set(ns, ns);
+  if (o.emis) { m.emissive = new THREE.Color(o.emis); m.emissiveIntensity = 1; }
+  m.userData.ix = name;
+  IX.mats.set(key, m);
+  return m;
+}
+
+/* ---------- geometry with UVs in metres ---------- */
+const ixGeoCache = new Map();
+const r2 = v => Math.round(v * 100) / 100;
+function ixBoxGeo(w, h, d) {
+  const key = 'b' + r2(w) + ',' + r2(h) + ',' + r2(d);
+  let g = ixGeoCache.get(key);
+  if (g) return g;
+  g = new THREE.BoxGeometry(w, h, d);
+  const uv = g.attributes.uv, dims = [[d, h], [d, h], [w, d], [w, d], [w, h], [w, h]];
+  for (let f = 0; f < 6; f++) for (let k = 0; k < 4; k++) { const i = f * 4 + k; uv.setXY(i, uv.getX(i) * dims[f][0], uv.getY(i) * dims[f][1]); }
+  g.setAttribute('uv1', uv.clone());   // aoMap reads the second set in three r160
+  g.userData.shared = true;
+  ixGeoCache.set(key, g);
+  return g;
+}
+function ixCylGeo(rt, rb, h, seg = 16) {
+  const key = 'c' + r2(rt) + ',' + r2(rb) + ',' + r2(h) + ',' + seg;
+  let g = ixGeoCache.get(key);
+  if (g) return g;
+  g = new THREE.CylinderGeometry(rt, rb, h, seg, 1);
+  const uv = g.attributes.uv, C = Math.PI * 2 * Math.max(rt, rb);
+  for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * C, uv.getY(i) * h);
+  g.setAttribute('uv1', uv.clone());
+  g.userData.shared = true;
+  ixGeoCache.set(key, g);
+  return g;
+}
+// a flat rectangle facing +z with UVs in metres (offsettable so neighbouring pieces line up)
+function ixQuadGeo(w, h, u0 = 0, v0 = 0) {
+  const g = new THREE.PlaneGeometry(w, h), uv = g.attributes.uv;
+  for (let i = 0; i < uv.count; i++) uv.setXY(i, u0 + uv.getX(i) * w, v0 + uv.getY(i) * h);
+  g.setAttribute('uv1', uv.clone());
+  return g;
+}
+function ixBox(g, w, h, d, x, y, z, mat, ry = 0, rx = 0, rz = 0) { const m = new THREE.Mesh(ixBoxGeo(w, h, d), mat); m.position.set(x, y, z); m.rotation.set(rx, ry, rz); g.add(m); return m; }
+function ixCyl(g, rt, rb, h, x, y, z, mat, seg = 16, rx = 0, ry = 0, rz = 0) { const m = new THREE.Mesh(ixCylGeo(rt, rb, h, seg), mat); m.position.set(x, y, z); m.rotation.set(rx, ry, rz); g.add(m); return m; }
+function ixQuad(g, w, h, x, y, z, ry, mat, u0 = 0, v0 = 0, rx = 0) { const m = new THREE.Mesh(ixQuadGeo(w, h, u0, v0), mat); m.position.set(x, y, z); m.rotation.set(rx, ry, 0, 'YXZ'); g.add(m); return m; }
+
+/* ---------- the scanned models ---------- */
+fetch('interiors/models/models.json').then(r => r.json()).then(j => { IX.man = j; ixSoon(); }).catch(() => {});
+fetch('interiors/art/art.json').then(r => r.json()).then(j => { IX.art = j; IX.ver++; ixSoon(); }).catch(() => {});
+async function ixLoader() {
+  if (IX.loader) return IX.loader;
+  const [{ GLTFLoader }, { MeshoptDecoder }] = await Promise.all([import('three/addons/loaders/GLTFLoader.js'), import('three/addons/libs/meshopt_decoder.module.js')]);
+  const L = new GLTFLoader(); L.setMeshoptDecoder(MeshoptDecoder);
+  IX.loader = L;
+  return L;
+}
+function ixRequest(name) {
+  if (IX.glb.has(name) || IX.wait.has(name) || !IX.man || !IX.man[name]) return;
+  const p = ixLoader().then(L => L.loadAsync(`interiors/models/${name}.glb`)).then(gl => {
+    const root = gl.scene;
+    root.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.geometry.userData.shared = true; if (o.material) { const ms = Array.isArray(o.material) ? o.material : [o.material]; for (const m of ms) { m.userData.shared = true; if (m.map) m.map.anisotropy = 4; } } } });
+    IX.glb.set(name, root);
+  }).catch(() => IX.glb.set(name, null)).finally(() => { IX.wait.delete(name); ixSoon(); });
+  IX.wait.set(name, p);
+}
+// once the models a house asked for have arrived, it is furnished again with the real things
+let ixSoonT = null;
+function ixSoon() {
+  if (ixSoonT) return;
+  ixSoonT = setTimeout(() => {
+    ixSoonT = null;
+    if (IX.wait.size) { ixSoon(); return; }
+    for (const [k, I] of dressed) if (I.ixPending) { undressHouse(I); dressed.delete(k); }
+  }, 250);
+}
+// a copy of model `name`, its base at y and centred on x,z, turned by rot. o.h / o.w / o.d / o.s size it; o.yaw turns a model
+// that was made facing the wrong way. Returns null (and asks for the model) if it isn't here yet.
+function ixModel(I, g, name, x, y, z, rot = 0, o = {}) {
+  const src = IX.glb.get(name);
+  if (!src) { if (src === undefined) { ixRequest(name); if (I) I.ixPending = true; } return null; }
+  const b = IX.man[name].b, sx = b[3] - b[0], sy = b[4] - b[1], sz = b[5] - b[2];
+  let s = o.s || 1;
+  if (o.h) s = o.h / sy; else if (o.w) s = o.w / sx; else if (o.d) s = o.d / sz; else if (o.fit) s = Math.min(o.fit[0] / sx, o.fit[1] / sy, o.fit[2] / sz);
+  const inner = src.clone(true);
+  inner.scale.setScalar(s);
+  inner.position.set(-(b[0] + b[3]) / 2 * s, -b[1] * s, -(b[2] + b[5]) / 2 * s);
+  const holder = new THREE.Group(); holder.add(inner);
+  if (o.yaw) { const h2 = new THREE.Group(); h2.rotation.y = o.yaw; h2.add(inner); holder.add(h2); }
+  holder.position.set(x, y, z); holder.rotation.set(o.rx || 0, rot, o.rz || 0);
+  g.add(holder);
+  holder.userData.dims = [sx * s, sy * s, sz * s];
+  return holder;
+}
+const ixDims = (name, o = {}) => { if (!IX.man || !IX.man[name]) return null; const b = IX.man[name].b, sx = b[3] - b[0], sy = b[4] - b[1], sz = b[5] - b[2]; let s = o.s || 1; if (o.h) s = o.h / sy; else if (o.w) s = o.w / sx; else if (o.d) s = o.d / sz; return [sx * s, sy * s, sz * s]; };
+
+/* ---------- the old painted textures of every interior, now photographed surfaces ---------- */
+const IX_IMAT = { planks: ['wood_floor_worn', 1.3], darkplanks: ['dark_wood', 0.9], stone: ['old_stone_wall', 1.6], plaster: ['plastered_wall', 2.2], tile: ['terracotta_floor_tiles', 1.8], marble: ['marble_01', 1.4],
+  tatami: ['tatami_mat', 1.6], terracotta: ['patterned_terracotta_tiling', 1.4], adobe: ['patterned_clay_wall', 2.0] };
+const _imatIX = imat;
+imat = function (kind, rx, ry, extra) {
+  const P = IX_IMAT[kind];
+  if (!P) return _imatIX(kind, rx, ry, extra);
+  const key = 'ix:' + kind + rx + ',' + ry + (extra ? JSON.stringify(extra) : '');
+  if (imCache.has(key)) return imCache.get(key);
+  const k = P[1], cl = ch => { const t = ixTex(P[0], ch).clone(); t.needsUpdate = true; t.repeat.set(rx * k, ry * k); return t; }, rt = cl('r');
+  const m = new THREE.MeshStandardMaterial(Object.assign({ map: cl('c'), normalMap: cl('n'), roughnessMap: rt, roughness: 1, metalness: 0 }, extra || {}));
+  // the source image arrives later; its clones must upload once it does
+  for (const ch of ['c', 'n', 'r']) { const base = ixTex(P[0], ch); if (!base.image) { const t = ch === 'c' ? m.map : ch === 'n' ? m.normalMap : rt; const iv = setInterval(() => { if (base.image && base.image.width) { t.needsUpdate = true; clearInterval(iv); } }, 300); } }
+  imCache.set(key, m);
+  return m;
+};
+
+/* ---------- walls: the inside face of a building is painted room by room from an atlas of real surfaces ---------- */
+// slots in the 4x4 atlas: what each is, and how many metres one repeat covers
+const IX_WALL = ['plastered_wall', 'white_stucco', 'peeling_painted_wall', 'wooden_panels', 'dark_paneled_wood', 'white_planks_clean', 'medieval_blocks_03', 'old_stone_wall',
+  'red_brick', 'whitewashed_brick', 'patterned_clay_wall', 'bamboo_wall', 'interior_tiles', 'floral_jacquard', '*stencil', 'patterned_plaster_wall'];
+const IX_WSLOT = Object.fromEntries(IX_WALL.map((n, i) => [n, i]));
+const IX_WSIZE = IX_WALL.map(n => n === '*stencil' ? 1.2 : IX_SIZE[n] || 2);
+// a stencilled pattern over limewash, tone on tone, as the painters did in the halls and better houses
+function ixStencil(ctx, S, base) {
+  if (base) ctx.drawImage(base, 0, 0, S, S); else { ctx.fillStyle = '#d8d2c4'; ctx.fillRect(0, 0, S, S); }
+  ctx.fillStyle = 'rgba(255,252,244,0.35)'; ctx.fillRect(0, 0, S, S);
+  ctx.save();
+  const n = 4, c = S / n;
+  ctx.strokeStyle = 'rgba(70,45,30,0.55)'; ctx.fillStyle = 'rgba(80,50,34,0.62)'; ctx.lineWidth = S / 300;
+  for (let i = -1; i <= n; i++) { ctx.beginPath(); ctx.moveTo(i * c, 0); ctx.lineTo(i * c + S, S); ctx.stroke(); ctx.beginPath(); ctx.moveTo(i * c + S, 0); ctx.lineTo(i * c, S); ctx.stroke(); }
+  for (let gy = 0; gy < n; gy++) for (let gx = 0; gx < n; gx++) {
+    const x = gx * c + c / 2, y = gy * c;
+    // a fleur-de-lis in each diamond
+    ctx.save(); ctx.translate(x, y + c / 2); const s = c / 110;
+    ctx.beginPath(); ctx.moveTo(0, -30 * s); ctx.bezierCurveTo(9 * s, -18 * s, 9 * s, -4 * s, 0, 6 * s); ctx.bezierCurveTo(-9 * s, -4 * s, -9 * s, -18 * s, 0, -30 * s); ctx.fill();
+    for (const sd of [-1, 1]) { ctx.beginPath(); ctx.moveTo(0, 2 * s); ctx.bezierCurveTo(sd * 22 * s, -2 * s, sd * 30 * s, -22 * s, sd * 16 * s, -24 * s); ctx.bezierCurveTo(sd * 22 * s, -10 * s, sd * 10 * s, 0, 0, 8 * s); ctx.fill(); }
+    ctx.fillRect(-14 * s, 6 * s, 28 * s, 5 * s);
+    ctx.beginPath(); ctx.moveTo(-5 * s, 11 * s); ctx.lineTo(0, 26 * s); ctx.lineTo(5 * s, 11 * s); ctx.fill();
+    ctx.restore();
+    // and a small four-petal rosette where the lines cross
+    ctx.save(); ctx.translate(gx * c, gy * c); for (let k = 0; k < 4; k++) { ctx.rotate(Math.PI / 2); ctx.beginPath(); ctx.ellipse(0, -c * 0.05, c * 0.025, c * 0.05, 0, 0, 6.3); ctx.fill(); } ctx.restore();
+  }
+  ctx.restore();
+}
+const IX_ATL = { c: null, n: null, ready: false, stencil: null };
+(function ixBuildAtlas() {
+  const S = 512, cc = document.createElement('canvas'), nc = document.createElement('canvas');
+  cc.width = cc.height = nc.width = nc.height = S * 4;
+  const cx = cc.getContext('2d'), nx = nc.getContext('2d');
+  nx.fillStyle = 'rgb(128,128,255)'; nx.fillRect(0, 0, S * 4, S * 4);
+  let left = 0;
+  const imgs = {};
+  const put = (i, img, ctx) => { ctx.drawImage(img, (i % 4) * S, Math.floor(i / 4) * S, S, S); };
+  const done = () => {
+    const sc = document.createElement('canvas'); sc.width = sc.height = S; ixStencil(sc.getContext('2d'), S, imgs.plastered_wall && imgs.plastered_wall.c);
+    put(14, sc, cx); if (imgs.plastered_wall) put(14, imgs.plastered_wall.n, nx);
+    const st = new THREE.CanvasTexture(sc); st.wrapS = st.wrapT = THREE.RepeatWrapping; st.colorSpace = THREE.SRGBColorSpace; st.anisotropy = 8; st.repeat.set(1 / 1.2, 1 / 1.2); IX_ATL.stencil = st;
+    const tc = new THREE.CanvasTexture(cc), tn = new THREE.CanvasTexture(nc);
+    tc.colorSpace = THREE.SRGBColorSpace; tc.anisotropy = 8; tn.anisotropy = 8;
+    tc.minFilter = tn.minFilter = THREE.LinearMipmapLinearFilter;
+    IX_ATL.c = tc; IX_ATL.n = tn; IX_ATL.ready = true;
+    U.uInAtl.value = tc; U.uInNrm.value = tn;
+  };
+  IX_WALL.forEach((name, i) => {
+    if (name[0] === '*') return;
+    for (const ch of ['c', 'n']) {
+      left++;
+      const im = new Image();
+      im.onload = () => { (imgs[name] = imgs[name] || {})[ch] = im; put(i, im, ch === 'c' ? cx : nx); if (--left === 0) done(); };
+      im.onerror = () => { if (--left === 0) done(); };
+      im.src = `interiors/tex/${name}_${ch}.webp`;
+    }
+  });
+})();
+const IX_NR = 16, IX_NZ = 28;
+Object.assign(U, {
+  uInAtl: { value: null }, uInNrm: { value: null }, uInOn: { value: 0 }, uInH: { value: new THREE.Vector4() }, uInY: { value: 0 }, uInN: { value: 0 },
+  uInR: { value: Array.from({ length: IX_NR }, () => new THREE.Vector4()) }, uInB: { value: Array.from({ length: IX_NR }, () => new THREE.Vector4()) },
+  uInC: { value: Array.from({ length: IX_NR }, () => new THREE.Vector4()) }, uInD: { value: Array.from({ length: IX_NR }, () => new THREE.Vector4()) }, uInE: { value: Array.from({ length: IX_NR }, () => new THREE.Vector4()) },
+  uInZ: { value: Array.from({ length: IX_NZ }, () => new THREE.Vector4()) }, uInZ2: { value: Array.from({ length: IX_NZ }, () => new THREE.Vector4()) }, uInZN: { value: 0 },
+  uCut: { value: Array.from({ length: 6 }, () => new THREE.Vector4()) }, uCutS: { value: Array.from({ length: 6 }, () => new THREE.Vector4()) },
+});
+const IX_GLSL_DECL = `
+uniform sampler2D uInAtl; uniform sampler2D uInNrm; uniform float uInOn; uniform vec4 uInH; uniform float uInY; uniform int uInN;
+uniform vec4 uInR[${IX_NR}]; uniform vec4 uInB[${IX_NR}]; uniform vec4 uInC[${IX_NR}]; uniform vec4 uInD[${IX_NR}]; uniform vec4 uInE[${IX_NR}];
+uniform vec4 uInZ[${IX_NZ}]; uniform vec4 uInZ2[${IX_NZ}]; uniform int uInZN;
+float ixSize(float s) { ${IX_WSIZE.map((v, i) => `if (s < ${i}.5) return ${v.toFixed(2)};`).join(' ')} return 2.0; }
+`;
+const IX_GLSL_WALL = `
+      if (inner && uInOn > 0.5) {
+        vec2 dq = vWPos.xz - uInH.xy;
+        vec2 lq = vec2(dq.x * uInH.z - dq.y * uInH.w, dq.x * uInH.w + dq.y * uInH.z);
+        float ly = vWPos.y - uInY;
+        for (int i = 0; i < ${IX_NR}; i++) {
+          if (i >= uInN) break;
+          vec4 R = uInR[i], B = uInB[i];
+          if (lq.x > R.x && lq.x < R.z && lq.y > R.y && lq.y < R.w && ly >= B.x && ly < B.y) {
+            float fy0 = ly - B.x;
+            bool low = fy0 < B.w;
+            float slot = low ? mod(B.z, 16.0) : floor(B.z / 16.0);
+            vec4 T = low ? uInD[i] : uInC[i];
+            float sz = ixSize(slot);
+            vec2 tc = vec2(u, fy0 + (low ? 0.0 : 0.37)) / sz;
+            vec2 cell = vec2(mod(slot, 4.0), 3.0 - floor(slot / 4.0));
+            ixAuv = (cell + 0.006 + fract(tc) * 0.988) / 4.0;
+            ixGx = dFdx(tc) * 0.247; ixGy = dFdy(tc) * 0.247;
+            vec3 a = textureGrad(uInAtl, ixAuv, ixGx, ixGy).rgb;
+            col = a * T.rgb;
+            // a skirting board at the foot, a moulded rail over a dado, soot and grime where the house is dirty
+            float skirt = step(fy0, 0.13);
+            float rail = B.w > 0.05 ? step(abs(fy0 - B.w - 0.02), 0.035) : 0.0;
+            col = mix(col, vec3(0.13, 0.085, 0.05) * (0.8 + 0.3 * fn), max(skirt, rail));
+            float grime = T.a;
+            float blot = texture2D(uNoise, vec2(u * 0.23 + lq.x * 0.05, fy0 * 0.19)).r;
+            col *= 1.0 - grime * (0.3 * smoothstep(1.3, 0.0, fy0) + 0.45 * smoothstep(0.45, 0.85, blot) + 0.25 * smoothstep(B.y - B.x - 0.9, B.y - B.x, fy0));
+            ixHit = 1.0; ixCur = uInE[i].rgb; ixCurOn = step(0.5, uInE[i].w);
+            break;
+          }
+        }
+      }
+`;
+// from inside, a window can't be where the household has put a wardrobe, a painting or a partition: those stretches of wall stay solid
+const IX_GLSL_ZONE = `
+      if (ixHit > 0.5 && uInZN > 0) {
+        vec2 dq2 = vWPos.xz - uInH.xy;
+        vec2 lc = vec2(dq2.x * uInH.z - dq2.y * uInH.w, dq2.x * uInH.w + dq2.y * uInH.z);
+        if (abs(Nl.x) > abs(Nl.z)) lc.y -= fx; else lc.x -= fx;
+        float ly2 = vWPos.y - uInY;
+        for (int i = 0; i < ${IX_NZ}; i++) {
+          if (i >= uInZN) break;
+          vec4 Zr = uInZ[i];
+          if (lc.x > Zr.x && lc.x < Zr.z && lc.y > Zr.y && lc.y < Zr.w && ly2 > uInZ2[i].x && ly2 < uInZ2[i].y) { valid = 0.0; break; }
+        }
+      }
+`;
+// from inside, glass is bright with the day; curtains hang either side of each window where the room has them
+const IX_GLSL_WIN = `
+      if (ixHit > 0.5 && win + frm > 0.0) {
+        float dayI = smoothstep(-0.08, 0.3, uSunDir.y);
+        vec3 sky = mix(vec3(0.02, 0.03, 0.06), vec3(0.78, 0.86, 0.95), dayI) * (0.85 + 0.15 * smoothstep(0.0, gh, gy));
+        if (eastW < 0.5 && adobe < 0.5) { glass = mix(sky, vec3(0.16, 0.11, 0.07), mull); ixGlow = sky * win * (1.0 - mull) * (0.25 + 0.9 * dayI); }
+        else ixGlow = glass * win * (1.0 - mull) * 0.8 * dayI;
+      }
+`;
+const IX_GLSL_CURTAIN = `
+      if (ixHit > 0.5 && ixCurOn > 0.5) {
+        float cw = 0.34, cxw = wx - ww - 0.02;
+        float cur = step(0.0, cxw) * step(cxw, cw) * step(y0 - 0.12, fy) * step(fy, y1 + 0.3) * valid * (1.0 - slit);
+        float fold = 0.72 + 0.28 * sin(cxw * 60.0 + fy * 0.8) * (1.0 - 0.3 * smoothstep(y1 - 0.4, y1 + 0.3, fy));
+        col = mix(col, ixCur * fold * (0.9 + 0.12 * fn), cur);
+        float rod = step(abs(fy - y1 - 0.34), 0.025) * step(wx, ww + cw + 0.08) * valid;
+        col = mix(col, vec3(0.08, 0.06, 0.05), rod);
+      }
+`;
+const IX_GLSL_NRM = `
+      if (ixHit > 0.5) {
+        vec3 nt = textureGrad(uInNrm, ixAuv, ixGx, ixGy).xyz * 2.0 - 1.0;
+        vec3 upV = normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
+        vec3 tV = normalize(cross(upV, normal));
+        vec3 bV = normalize(cross(normal, tV));
+        normal = normalize(tV * nt.x * 0.9 + bV * nt.y * 0.9 + normal * max(nt.z, 0.2));
+      }
+`;
+const IX_GLSL_CUT = `
+  for (int ci = 0; ci < 6; ci++) {
+    vec4 cc = uCut[ci], cs = uCutS[ci];
+    if (cs.x <= 0.0) continue;
+    vec2 dq = vWPos.xz - cc.xy;
+    vec2 lq = vec2(dq.x * cc.z - dq.y * cc.w, dq.x * cc.w + dq.y * cc.z);
+    if (abs(lq.x) < cs.x && abs(lq.y) < cs.y && vWPos.y > cs.z - 0.3 && vWPos.y < cs.z + 3.0) discard;
+  }
+`;
+{
+  const ob = archMat.onBeforeCompile;
+  archMat.onBeforeCompile = (sh, r) => {
+    ob(sh, r);
+    let fs = sh.fragmentShader;
+    const anchors = ['float archWet = 0.0;', 'if (inner && st > 7.5 && st < 8.5) col = vec3(0.84, 0.8, 0.72) * (0.9 + 0.12 * gn);', 'col = mix(col, glass, win);', 'col = mix(col, frameC, frm);', '#include <normal_fragment_maps>', 'totalEmissiveRadiance += vec3(1.0, 0.5, 0.18) * winLit * 0.28 + stainedGlow;', 'float win = winShape(wx, fy, ww, y0, y1, arch) * valid;'];
+    for (const a of anchors) if (!fs.includes(a)) { console.warn('interiors: shader anchor missing', a); return; }
+    fs = fs.replace('#include <common>', '#include <common>\n' + IX_GLSL_DECL)
+      .replace(anchors[0], anchors[0] + '\nfloat ixHit = 0.0; vec2 ixAuv = vec2(0.0); vec2 ixGx = vec2(0.0); vec2 ixGy = vec2(0.0); vec3 ixCur = vec3(0.0); float ixCurOn = 0.0; vec3 ixGlow = vec3(0.0);')
+      .replace(anchors[1], anchors[1] + IX_GLSL_WALL)
+      .replace(anchors[2], IX_GLSL_WIN + anchors[2])
+      .replace(anchors[3], anchors[3] + IX_GLSL_CURTAIN)
+      .replace(anchors[4], anchors[4] + IX_GLSL_NRM)
+      .replace(anchors[5], anchors[5] + '\ntotalEmissiveRadiance += ixGlow;')
+      .replace(anchors[6], IX_GLSL_ZONE + anchors[6]);
+    for (const k of ['uInAtl', 'uInNrm', 'uInOn', 'uInH', 'uInY', 'uInN', 'uInR', 'uInB', 'uInC', 'uInD', 'uInE', 'uInZ', 'uInZ2', 'uInZN']) sh.uniforms[k] = U[k];
+    sh.fragmentShader = fs;
+  };
+  // terrain and grass never grow up through a house floor
+  for (const M of [terrainMat, grassMat]) {
+    const o2 = M.onBeforeCompile;
+    M.onBeforeCompile = (sh, r) => {
+      o2(sh, r);
+      if (!sh.fragmentShader.includes('#include <clipping_planes_fragment>')) return;
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec4 uCut[6]; uniform vec4 uCutS[6];')
+        .replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\n' + IX_GLSL_CUT);
+      sh.uniforms.uCut = U.uCut; sh.uniforms.uCutS = U.uCutS;
+    };
+  }
+}
+// wall finishes as materials, for the partitions built between rooms: the same surfaces as the atlas
+function ixWallMat(slot, tint) {
+  const name = IX_WALL[slot];
+  if (name === '*stencil') {
+    const key = 'stencil|' + tint;
+    let m = IX.mats.get(key);
+    if (!m) { m = new THREE.MeshStandardMaterial({ map: IX_ATL.stencil, normalMap: ixTex('plastered_wall', 'n'), roughness: 0.9, color: tint }); IX.mats.set(key, m); if (!IX_ATL.stencil) IX.stencilWait = (IX.stencilWait || []).concat(m); }
+    return m;
+  }
+  return pbr(name, { tint });
+}
+function ixFixStencils() { if (IX_ATL.stencil && IX.stencilWait) { for (const m of IX.stencilWait) { m.map = IX_ATL.stencil; m.needsUpdate = true; } IX.stencilWait = null; } }
+
+/* ---------- who lives here: how well off, how tidy, their style and their tastes ---------- */
+const IX_RICH = /Lord|Lady|King|Queen|Noble|Governor|Guildmaster|Merchant|Jeweller|Goldsmith|Physician|Vintner|Spice|Silk|Perfumer|Caravan|Navigator|Reeve|Cartographer|Astronomer|Elder|Scholar|Librarian|Stablemaster/;
+const IX_POOR = /Labourer|Porter|Beggar|Shepherd|Herder|Woodcutter|Trapper|Crofter|Fisher|Miner|Prospector|Servant|Farmhand|Hawker|Sailor|Idler|Undertaker|Pearl|Canoe|Net/;
+const IX_BOOKISH = /Scribe|Scholar|Librarian|Cartographer|Astronomer|Teacher|Healer|Physician|Priest|Monk|Elder|Calligrapher|Bookbinder|Governor|Reeve|Lord/;
+function ixStyle(t, H) {
+  const c = t.s.culture;
+  return H.style === 'eastern' ? 'east' : H.style === 'mediterranean' ? 'med' : c === 'desert' ? 'desert' : c === 'north' ? 'north' : c === 'tropic' ? 'tropic' : 'temp';
+}
+function ixProfile(t, H) {
+  const r = G.mkRng((t.s.seed * 31 + H.id * 7331 + 11) >>> 0), owners = houseOwners(t, H);
+  const adults = owners.filter(a => a.res.job !== 'Child'), kids = owners.filter(a => a.res.job === 'Child'), jobs = adults.map(a => a.res.job).join(' ');
+  let wealth = 0.26 + t.s.tier * 0.05 + (t.s.mega ? 0.08 : 0) + clamp((H.w * H.dp * Math.max(1, H.floors) - 70) / 300, -0.14, 0.16) + (IX_RICH.test(jobs) ? 0.2 : 0) - (IX_POOR.test(jobs) && !IX_RICH.test(jobs) ? 0.15 : 0) + (r() - 0.5) * 0.44;
+  if (H.mansion) wealth = 0.92 + r() * 0.08;
+  wealth = clamp(wealth, 0.02, 1);
+  let tidy = 0.66 + (r() - 0.5) * 0.9 - kids.length * 0.07 + (wealth - 0.5) * 0.35 + (adults.length === 1 ? -0.08 : 0.04) + (/Retired|Idler/.test(jobs) ? -0.15 : 0);
+  if (H.mansion) tidy = Math.max(tidy, 0.75);
+  if (!owners.length) tidy = Math.min(tidy, 0.25);
+  tidy = clamp(tidy, 0, 1);
+  const sty = ixStyle(t, H);
+  return { r, owners, adults, kids, jobs, wealth, tidy, sty, empty: !owners.length, bookish: IX_BOOKISH.test(jobs) || (wealth > 0.8 && r() < 0.6), pious: r() < 0.55 || /Priest|Monk/.test(jobs), green: r() < 0.25 + tidy * 0.5, music: r() < 0.18, hunter: /Hunter|Trapper|Guard|Lord/.test(jobs), spinner: adults.length > 0 && r() < 0.35, boss: adults[0] || null };
+}
+
+/* ---------- the floor plan: storeys, stairs, rooms, doors ---------- */
+const IX_FY = HOME_FY;
+function ixRectsOverlap(a, b, m = 0) { return a[0] < b[1] + m && a[1] > b[0] - m && a[2] < b[3] + m && a[3] > b[2] - m; }
+const ixIn = (R, x, z) => x >= R.x0 && x <= R.x1 && z >= R.z0 && z <= R.z1;
+function ixPlan(t, H) {
+  const pf = ixProfile(t, H), r = pf.r, sty = pf.sty;
+  const X = H.w / 2 - 0.12, Z = H.dp / 2 - 0.12, W = 2 * X, D = 2 * Z;
+  let nL = Math.max(1, Math.min(3, H.floors || 1));
+  if (W < 5.0 || D < 5.4) nL = 1;
+  const topH = nL === 1 ? Math.min(3.1, H.h - 0.1) : clamp(H.h - (nL - 1) * IX_FY - 0.2, 2.4, 3.1);
+  const P = { v2: true, pf, sty, X, Z, W, D, nL, FY: IX_FY, ceil: [], rooms: [], flights: [], holes: [], walls: [], items: [], rails: [], zones: [], beds: [], seats: [], chat: [], acts: [], bedFor: new Map(), sweep: [0, Z - 1.8], up: nL > 1, cook: null, work: null, hearth: null };
+  for (let l = 0; l < nL; l++) P.ceil.push(l < nL - 1 ? IX_FY - 0.17 : topH);
+  // the stair: straight flights up one side wall, a second beside it for a third storey
+  const sx = r() < 0.5 ? -1 : 1, fw = 1.05, L = Math.min(3.7, D - 2.4), foot = Z - 1.25, top = foot - L;
+  for (let l = 0; l < nL - 1; l++) {
+    const xa = sx < 0 ? -X + l * fw : X - (l + 1) * fw, xb = xa + fw;
+    const up = l % 2 === 0;   // the first runs back from the front, the second returns
+    P.flights.push({ l, x0: xa, x1: xb, zA: up ? foot : top, zB: up ? top : foot, yA: l * IX_FY, yB: (l + 1) * IX_FY, z0: top, z1: foot });
+    P.holes[l + 1] = [xa, xb, top, foot];
+  }
+  // what each storey's hub must hold: the front door and the stair foot below, the stair head above
+  const reqs = [];
+  for (let l = 0; l < nL; l++) {
+    const q = [];
+    if (l === 0) q.push([-0.95, 0.95, Z - 1.9, Z]);
+    const fin = P.flights.find(f => f.l === l - 1), fout = P.flights.find(f => f.l === l);
+    if (fin) q.push([fin.x0, fin.x1, fin.z0, fin.z1], fin.zB < fin.zA ? [fin.x0, fin.x1, fin.zB - 1.2, fin.zB] : [fin.x0, fin.x1, fin.zB, fin.zB + 1.2]);
+    if (fout) q.push([fout.x0, fout.x1, fout.z0, fout.z1], fout.zA > fout.zB ? [fout.x0, fout.x1, fout.zA, fout.zA + 1.1] : [fout.x0, fout.x1, fout.zA - 1.1, fout.zA]);
+    if (fout && l === 0) q.push([Math.min(fout.x0, -0.95), Math.max(fout.x1, 0.95), fout.zA, Z]);
+    const bb = q.length ? [Math.min(...q.map(a => a[0])), Math.max(...q.map(a => a[1])), Math.min(...q.map(a => a[2])), Math.max(...q.map(a => a[3]))] : null;
+    reqs.push(bb ? [Math.max(-X, bb[0]), Math.min(X, bb[1]), Math.max(-Z, bb[2]), Math.min(Z, bb[3])] : null);
+  }
+  // how many rooms each storey is divided into
+  const want = l => {
+    const A = W * D;
+    let n;
+    if (nL === 1) n = 1 + (A > 24) + (A > 36) + (A > 52) + (pf.wealth > 0.75 && A > 40);
+    else if (l === 0) n = 1 + (A > 24) + (A > 40) + (A > 58 && pf.wealth > 0.45) + (pf.wealth > 0.85 && A > 44);
+    else n = 1 + (A > 20) + (A > 32) + (A > 48) + (pf.wealth > 0.8 && A > 40);
+    if (pf.wealth < 0.22 && nL === 1) n = Math.min(n, 2);
+    if (r() < 0.25) n = Math.max(1, n - 1);
+    return Math.min(n, sty === 'tropic' ? 2 : 6);
+  };
+  for (let l = 0; l < nL; l++) {
+    const req = reqs[l], MIN = 2.05;
+    let rects = [[-X, X, -Z, Z]];
+    const target = want(l);
+    for (let guard = 0; rects.length < target && guard < 20; guard++) {
+      rects.sort((a, b) => (b[1] - b[0]) * (b[3] - b[2]) - (a[1] - a[0]) * (a[3] - a[2]));
+      let done = false;
+      for (let ri = 0; ri < rects.length && !done; ri++) {
+        const R = rects[ri], w = R[1] - R[0], d = R[3] - R[2];
+        const axes = w > d * 1.15 ? ['x', 'z'] : d > w * 1.15 ? ['z', 'x'] : r() < 0.5 ? ['x', 'z'] : ['z', 'x'];
+        for (const ax of axes) {
+          const lo = ax === 'x' ? R[0] : R[2], hi = ax === 'x' ? R[1] : R[3];
+          if (hi - lo < MIN * 2) continue;
+          const cands = [];
+          for (let c = lo + MIN; c <= hi - MIN + 1e-6; c += 0.15) {
+            // a split may not cut through what the hub must hold
+            if (req && ixRectsOverlap(R, req) && (ax === 'x' ? c > req[0] - 0.01 && c < req[1] + 0.01 : c > req[2] - 0.01 && c < req[3] + 0.01)) continue;
+            cands.push(c);
+          }
+          if (!cands.length) continue;
+          // favour splits near the thirds: a big room and a smaller one, not two halves
+          cands.sort((a, b) => Math.abs((a - lo) / (hi - lo) - 0.4) - Math.abs((b - lo) / (hi - lo) - 0.4));
+          const c = Math.round(cands[Math.floor(r() * Math.min(cands.length, 6))] * 100) / 100;
+          rects.splice(ri, 1, ax === 'x' ? [R[0], c, R[2], R[3]] : [R[0], R[1], R[2], c], ax === 'x' ? [c, R[1], R[2], R[3]] : [R[0], R[1], c, R[3]]);
+          done = true; break;
+        }
+      }
+      if (!done) break;
+    }
+    const rooms = rects.map(R => ({ id: P.rooms.length, l, x0: R[0], x1: R[1], z0: R[2], z1: R[3], type: null, occ: [], keep: [], doors: [], parent: null, door: null }));
+    rooms.forEach((R, i) => { R.id = P.rooms.length + i; });
+    const hub = req ? rooms.find(R => ixIn(R, (req[0] + req[1]) / 2, (req[2] + req[3]) / 2)) || rooms[0] : rooms[0];
+    hub.hub = true;
+    P.rooms.push(...rooms);
+    // doors: a tree from the hub, each room opening onto the one that brings it nearest the hub
+    const inL = rooms, seen = new Set([hub.id]), queue = [hub];
+    while (queue.length) {
+      const A = queue.shift();
+      for (const B of inL) {
+        if (seen.has(B.id)) continue;
+        let seg = null;
+        if (Math.abs(A.x1 - B.x0) < 0.01 || Math.abs(B.x1 - A.x0) < 0.01) { const c = Math.abs(A.x1 - B.x0) < 0.01 ? A.x1 : A.x0, a0 = Math.max(A.z0, B.z0), a1 = Math.min(A.z1, B.z1); if (a1 - a0 > 1.25) seg = { ax: 'x', c, a0, a1 }; }
+        else if (Math.abs(A.z1 - B.z0) < 0.01 || Math.abs(B.z1 - A.z0) < 0.01) { const c = Math.abs(A.z1 - B.z0) < 0.01 ? A.z1 : A.z0, a0 = Math.max(A.x0, B.x0), a1 = Math.min(A.x1, B.x1); if (a1 - a0 > 1.25) seg = { ax: 'z', c, a0, a1 }; }
+        if (!seg) continue;
+        // the doorway: not in a corner, not onto the stair or into the stairwell
+        const opts = [];
+        for (let p = seg.a0 + 0.62; p <= seg.a1 - 0.62; p += 0.1) {
+          const dz = seg.ax === 'x' ? [seg.c - 1.1, seg.c + 1.1, p - 0.6, p + 0.6] : [p - 0.6, p + 0.6, seg.c - 1.1, seg.c + 1.1];
+          if (P.flights.some(f => (f.l === l || f.l === l - 1) && ixRectsOverlap(dz, [f.x0, f.x1, f.z0, f.z1], -0.05))) continue;
+          opts.push(p);
+        }
+        if (!opts.length) continue;
+        opts.sort((a, b) => Math.abs(a - (seg.a0 + seg.a1) / 2) - Math.abs(b - (seg.a0 + seg.a1) / 2));
+        const p = Math.round(opts[Math.floor(r() * Math.min(opts.length, 4))] * 100) / 100, sgn = seg.ax === 'x' ? (B.x0 >= A.x1 - 0.01 ? 1 : -1) : (B.z0 >= A.z1 - 0.01 ? 1 : -1);
+        const dw = sty === 'east' ? 1.5 : 0.92;
+        const pIn = seg.ax === 'x' ? [seg.c + sgn * 0.75, p] : [p, seg.c + sgn * 0.75], pOut = seg.ax === 'x' ? [seg.c - sgn * 0.75, p] : [p, seg.c - sgn * 0.75];
+        B.parent = A.id; B.door = { ax: seg.ax, c: seg.c, p, w: dw, pIn, pOut };
+        seen.add(B.id); queue.push(B);
+      }
+    }
+    // a room nobody can reach through a door is opened into its neighbour instead
+    for (const B of inL) if (!seen.has(B.id)) {
+      const N = inL.find(A => seen.has(A.id) && (Math.abs(A.x1 - B.x0) < 0.01 || Math.abs(B.x1 - A.x0) < 0.01 || Math.abs(A.z1 - B.z0) < 0.01 || Math.abs(B.z1 - A.z0) < 0.01));
+      B.open = N ? N.id : hub.id; B.parent = B.open; seen.add(B.id);
+    }
+    // walls between rooms, with their doorways
+    for (let i = 0; i < inL.length; i++) for (let j = i + 1; j < inL.length; j++) {
+      const A = inL[i], B = inL[j];
+      if (A.open === B.id || B.open === A.id) continue;
+      let seg = null;
+      if (Math.abs(A.x1 - B.x0) < 0.01) seg = { ax: 'x', c: A.x1, lo: A, hi: B }; else if (Math.abs(B.x1 - A.x0) < 0.01) seg = { ax: 'x', c: B.x1, lo: B, hi: A };
+      else if (Math.abs(A.z1 - B.z0) < 0.01) seg = { ax: 'z', c: A.z1, lo: A, hi: B }; else if (Math.abs(B.z1 - A.z0) < 0.01) seg = { ax: 'z', c: B.z1, lo: B, hi: A };
+      if (!seg) continue;
+      seg.a0 = seg.ax === 'x' ? Math.max(A.z0, B.z0) : Math.max(A.x0, B.x0); seg.a1 = seg.ax === 'x' ? Math.min(A.z1, B.z1) : Math.min(A.x1, B.x1);
+      if (seg.a1 - seg.a0 < 0.05) continue;
+      seg.doors = [A, B].filter(R => R.door && (R.parent === A.id || R.parent === B.id) && Math.abs(R.door.c - seg.c) < 0.01 && R.door.ax === seg.ax).map(R => R.door);
+      seg.l = l;
+      P.walls.push(seg);
+    }
+  }
+  ixAssignRooms(P, t, H);
+  ixLayout(P, t, H);
+  return P;
+}
+// what each room is for
+function ixAssignRooms(P, t, H) {
+  const pf = P.pf, r = pf.r, nKids = pf.kids.length, sleepers = ixSleepers(pf);
+  const byL = l => P.rooms.filter(R => R.l === l && R.open == null);
+  const area = R => (R.x1 - R.x0) * (R.z1 - R.z0);
+  const hasTrade = pf.boss && !/Child|Idler|Retired/.test(pf.boss.res.job);
+  for (let l = 0; l < P.nL; l++) {
+    const rs = byL(l), hub = rs.find(R => R.hub), rest = rs.filter(R => !R.hub).sort((a, b) => area(b) - area(a));
+    const list = [];
+    if (P.nL === 1) {
+      hub.type = 'hall';
+      let nb = Math.min(rest.length, Math.max(sleepers.length > 1 ? 1 : 0, Math.ceil(sleepers.length / 2)));
+      if (rest.length >= 3) list.push('kitchen');
+      for (let i = 0; i < nb; i++) list.push(i === 0 ? 'bedroom' : nKids && i === nb - 1 ? 'kids' : 'bedroom');
+      if (pf.wealth > 0.55) list.push('washroom');
+      list.push(hasTrade && pf.wealth < 0.7 ? 'workshop' : 'pantry', 'bedroom');
+    } else if (l === 0) {
+      hub.type = rest.length ? (pf.wealth > 0.55 ? 'parlour' : 'hall') : 'hall';
+      list.push('kitchen');
+      if (hasTrade && r() < 0.6) list.push('workshop');
+      if (pf.wealth > 0.6) list.push('dining');
+      if (pf.bookish) list.push('study');
+      list.push('pantry', pf.wealth > 0.5 ? 'washroom' : 'pantry');
+    } else {
+      hub.type = area(hub) > 12 && pf.wealth > 0.45 ? 'solar' : 'landing';
+      const upL = P.nL - 1;
+      // sleepers go upstairs; the grandest room is the master bedroom
+      const need = l === 1 ? Math.max(1, Math.ceil(sleepers.length / (upL > 1 ? 2 : 1))) : Math.max(0, sleepers.length - byL(1).length + 1);
+      for (let i = 0; i < need; i++) list.push(i === 0 && l === 1 ? 'master' : nKids && i === 1 ? 'kids' : 'bedroom');
+      if (l === 1 && pf.wealth > 0.45) list.push('washroom');
+      list.push(l === P.nL - 1 && P.nL === 3 ? 'store' : pf.bookish ? 'study' : 'bedroom', 'store');
+    }
+    rest.forEach((R, i) => { R.type = list[i] || 'store'; });
+    // the smallest room gets the washroom or pantry; a kitchen wants the back of the house
+    const wr = rest.find(R => R.type === 'washroom'), sm = rest.slice().sort((a, b) => area(a) - area(b))[0];
+    if (wr && sm && sm !== wr && area(wr) > area(sm) * 1.4) { const tt = sm.type; sm.type = 'washroom'; wr.type = tt; }
+    for (const R of P.rooms) if (R.open != null) R.type = P.rooms[R.open].type;
+  }
+}
+function ixSleepers(pf) {
+  const couple = pf.adults.length >= 2 && surnameOf(pf.adults[0]) === surnameOf(pf.adults[1]) ? [pf.adults[0], pf.adults[1]] : null;
+  return [...(couple ? [couple] : []), ...pf.adults.filter(a => !couple || !couple.includes(a)).map(a => [a]), ...pf.kids.map(a => [a])];
+}
+
+/* ---------- the furniture of each room, laid out against its walls ---------- */
+// nominal sizes [along the wall, depth, height]; the builders fit the models to these
+const IX_F = {
+  bedS: [1.05, 2.1, 1.0], bedD: [1.65, 2.15, 1.1], bedK: [0.85, 1.65, 0.8], pallet: [0.95, 1.95, 0.3], futon: [1.0, 2.0, 0.14], mat: [0.95, 1.95, 0.2],
+  wardrobe: [1.25, 0.62, 2.1], chest: [0.95, 0.5, 0.55], commode: [1.2, 0.56, 1.15], dresser: [1.7, 0.58, 2.15], shelf: [1.15, 0.42, 1.9], books: [1.35, 0.52, 2.05], cupboard: [1.2, 0.62, 1.2],
+  night: [0.5, 0.45, 0.66], wash: [0.75, 0.48, 0.85], tub: [1.5, 0.82, 0.62], stool2: [0.5, 0.5, 0.48], towel: [0.7, 0.3, 1.1], closestool: [0.52, 0.52, 0.5],
+  worktableT: [1.5, 0.66, 0.88], hearth: [1.95, 0.9, 1.45], bigHearth: [2.5, 1.1, 1.6], worktable: [1.45, 0.72, 0.86], barrel: [0.64, 0.64, 0.9], sacks: [1.1, 0.62, 0.62], crates: [0.95, 0.55, 0.9], bucket: [0.45, 0.45, 0.5],
+  armchair: [0.85, 0.85, 1.05], settle: [1.35, 0.56, 1.0], sofa: [2.2, 0.82, 1.0], desk: [1.25, 0.65, 0.78], wheel: [0.6, 1.05, 1.0], plant: [0.6, 0.6, 1.2], bench: [1.4, 0.4, 0.46],
+  trade: [1.7, 0.85, 1.8], tokonoma: [1.9, 0.8, 2.3], kamado: [1.5, 0.78, 0.85], screen: [1.3, 0.45, 1.6], divan: [2.2, 0.85, 0.5], tannur: [1.0, 1.0, 0.9], toys: [0.8, 0.5, 0.5], cradle: [0.6, 1.0, 0.7], ladder: [0.6, 0.6, 2.0], logs: [1.0, 0.5, 0.7], basketF: [0.5, 0.45, 0.35], stoolW: [0.45, 0.45, 0.5], sideTable: [0.6, 0.5, 0.62], pedestal: [0.45, 0.45, 1.4],
+};
+const IX_ROT = { N: 0, S: Math.PI, W: Math.PI / 2, E: -Math.PI / 2 };
+function ixEdges(P, R) {
+  const E = [];
+  const ext = { N: Math.abs(R.z0 + P.Z) < 0.02, S: Math.abs(R.z1 - P.Z) < 0.02, W: Math.abs(R.x0 + P.X) < 0.02, E: Math.abs(R.x1 - P.X) < 0.02 };
+  for (const s of ['N', 'S', 'W', 'E']) {
+    const horiz = s === 'N' || s === 'S', c = s === 'N' ? R.z0 : s === 'S' ? R.z1 : s === 'W' ? R.x0 : R.x1, a0 = horiz ? R.x0 : R.z0, a1 = horiz ? R.x1 : R.z1, open = [];
+    // doorways on this side: its own door, its children's doors, the front door
+    for (const Q of P.rooms) if (Q.l === R.l && Q.door && (Q.id === R.id || Q.parent === R.id) && Math.abs(Q.door.c - c) < 0.02 && (Q.door.ax === 'z') === horiz) open.push([Q.door.p - Q.door.w / 2 - 0.25, Q.door.p + Q.door.w / 2 + 0.25]);
+    if (s === 'S' && ext.S && R.l === 0 && R.x0 < 0 && R.x1 > 0) open.push([-1.0, 1.0]);
+    // a side opened into the next room (no wall there) can't take furniture
+    for (const Q of P.rooms) if (Q.l === R.l && Q.id !== R.id && (Q.open === R.id || R.open === Q.id)) {
+      const qc = s === 'N' ? Q.z1 : s === 'S' ? Q.z0 : s === 'W' ? Q.x1 : Q.x0;
+      if (Math.abs(qc - c) < 0.02) open.push(horiz ? [Math.max(a0, Q.x0), Math.min(a1, Q.x1)] : [Math.max(a0, Q.z0), Math.min(a1, Q.z1)]);
+    }
+    E.push({ s, c, a0, a1, ext: ext[s], open });
+  }
+  return E;
+}
+function ixKeeps(P, R) {
+  const K = [];
+  for (const Q of P.rooms) if (Q.l === R.l && Q.door && (Q.id === R.id || Q.parent === R.id)) {
+    const d = Q.door, hw = d.w / 2 + 0.2;
+    K.push(d.ax === 'x' ? [d.c - 1.05, d.c + 1.05, d.p - hw, d.p + hw] : [d.p - hw, d.p + hw, d.c - 1.05, d.c + 1.05]);
+  }
+  if (R.l === 0) K.push([-1.0, 1.0, P.Z - 1.9, P.Z + 0.1]);
+  for (const f of P.flights) {
+    if (f.l === R.l || f.l === R.l - 1) K.push([f.x0 - 0.05, f.x1 + 0.05, f.z0 - 0.05, f.z1 + 0.05]);
+    if (f.l === R.l) K.push(f.zA > f.zB ? [f.x0, f.x1, f.zA, f.zA + 1.2] : [f.x0, f.x1, f.zA - 1.2, f.zA]);
+    if (f.l === R.l - 1) K.push(f.zB < f.zA ? [f.x0 - 0.1, f.x1 + 0.1, f.zB - 1.25, f.zB] : [f.x0 - 0.1, f.x1 + 0.1, f.zB, f.zB + 1.25]);
+  }
+  if (R.door) { const a = R.door.pIn, b = R.door.pOut; void b; K.push([a[0] - 0.45, a[0] + 0.45, a[1] - 0.45, a[1] + 0.45]); }
+  return K;
+}
+function ixLayout(P, t, H) {
+  const pf = P.pf, r = pf.r;
+  for (const R of P.rooms) { R.edges = ixEdges(P, R); R.keep = ixKeeps(P, R); R.occ = []; }
+  const rect = (x, z, w, d) => [x - w / 2, x + w / 2, z - d / 2, z + d / 2];
+  const free = (R, q, m = 0.04) => q[0] >= R.x0 - 0.001 && q[1] <= R.x1 + 0.001 && q[2] >= R.z0 - 0.001 && q[3] <= R.z1 + 0.001 && !R.occ.some(o => ixRectsOverlap(o, q, m)) && !R.keep.some(o => ixRectsOverlap(o, q, -0.02));
+  const caps = { plant: 2 + (pf.green ? 2 : 0), pedestal: pf.wealth > 0.62 ? 2 : 0, armchair: 3, sideTable: 3, chest: 3, wheel: 1, logs: 2, basketF: 4, stoolW: 4 }, count = {};
+  const add = (R, it, q, tall) => {
+    count[it.k] = (count[it.k] || 0) + 1;
+    Object.assign(it, { l: R.l, room: R.id }); P.items.push(it); R.occ.push(q); it.q = q;
+    if (tall || it.h > 1.25) P.zones.push([q[0] - 0.5, q[1] + 0.5, q[2] - 0.5, q[3] + 0.5, R.l]);
+    return it;
+  };
+  // against a wall: tries the sides in order, sliding along each; 'corner' prefers the ends, 'mid' the middle
+  const onWall = (R, k, o = {}) => {
+    if (caps[k] != null && (count[k] || 0) >= caps[k]) return null;
+    const [w, d, h] = o.size || IX_F[k] || [0.8, 0.5, 0.8];
+    let sides = R.edges.slice();
+    if (o.sides) sides = o.sides.map(s => R.edges.find(e => e.s === s)).filter(Boolean);
+    else { sides.sort(() => r() - 0.5); if (o.prefer === 'int') sides.sort((a, b) => a.ext - b.ext); if (o.prefer === 'ext') sides.sort((a, b) => b.ext - a.ext); }
+    for (const e of sides) {
+      const L = e.a1 - e.a0;
+      if (L < w + 0.05) continue;
+      const ts = [];
+      for (let t2 = e.a0 + w / 2 + 0.03; t2 <= e.a1 - w / 2 - 0.03 + 1e-6; t2 += 0.1) ts.push(t2);
+      if (o.pos === 'corner') ts.sort((a, b) => Math.min(a - e.a0, e.a1 - a) - Math.min(b - e.a0, e.a1 - b));
+      else if (o.pos === 'mid') ts.sort((a, b) => Math.abs(a - (e.a0 + e.a1) / 2) - Math.abs(b - (e.a0 + e.a1) / 2));
+      else ts.sort(() => r() - 0.5);
+      for (const t2 of ts) {
+        if (e.open.some(([a, b]) => t2 + w / 2 > a && t2 - w / 2 < b)) continue;
+        const g = o.gap ?? 0.02;
+        const x = e.s === 'N' || e.s === 'S' ? t2 : e.s === 'W' ? e.c + d / 2 + g : e.c - d / 2 - g;
+        const z = e.s === 'W' || e.s === 'E' ? t2 : e.s === 'N' ? e.c + d / 2 + g : e.c - d / 2 - g;
+        const q = e.s === 'N' || e.s === 'S' ? rect(x, z, w, d) : rect(x, z, d, w);
+        const clear = o.front ? (e.s === 'N' ? [q[0], q[1], q[3], q[3] + o.front] : e.s === 'S' ? [q[0], q[1], q[2] - o.front, q[2]] : e.s === 'W' ? [q[1], q[1] + o.front, q[2], q[3]] : [q[0] - o.front, q[0], q[2], q[3]]) : null;
+        if (!free(R, q) || (clear && !free(R, clear, 0))) continue;
+        const it = add(R, Object.assign({ k, x, z, rot: IX_ROT[e.s], w, d, h, side: e.s, ext: e.ext }, o.extra || {}), q, o.tall);
+        if (clear) R.keep.push(clear);
+        return it;
+      }
+    }
+    return null;
+  };
+  // in the open floor: a table and its chairs, a rug, a central hearth
+  const inMiddle = (R, k, w, d, pad, o = {}) => {
+    const cx = (R.x0 + R.x1) / 2, cz = (R.z0 + R.z1) / 2, cands = [];
+    for (let x = R.x0 + w / 2 + pad; x <= R.x1 - w / 2 - pad + 1e-6; x += 0.15) for (let z = R.z0 + d / 2 + pad; z <= R.z1 - d / 2 - pad + 1e-6; z += 0.15) cands.push([x, z]);
+    const to = o.near || [cx, cz];
+    cands.sort((a, b) => Math.hypot(a[0] - to[0], a[1] - to[1]) - Math.hypot(b[0] - to[0], b[1] - to[1]));
+    for (const [x, z] of cands.slice(0, 400)) {
+      const q = rect(x, z, w + pad * 2, d + pad * 2);
+      if (!free(R, q, 0.02)) continue;
+      return add(R, Object.assign({ k, x, z, rot: o.rot || 0, w, d, h: o.h || 0.8 }, o.extra || {}), q);
+    }
+    return null;
+  };
+  const S = pf.sty, rich = pf.wealth > 0.62, poor = pf.wealth < 0.3, low = S === 'east' || S === 'desert' || S === 'tropic';
+  const act = (x, z, rot, a, l, tool, room) => P.acts.push([x, z, rot, a, l, tool || null, room]);
+  const front = (it, dist = 0.9) => [it.x + Math.sin(it.rot) * (it.d / 2 + dist), it.z + Math.cos(it.rot) * (it.d / 2 + dist)];
+  // the hearth: in the kitchen if there is one, else the hall; eastern homes cook at a kamado by the door and warm themselves at a sunken irori
+  const kitchen = P.rooms.find(R => R.type === 'kitchen' && R.open == null), hall = P.rooms.find(R => R.hub && R.l === 0);
+  const hearthRoom = kitchen || hall;
+  let hearth = null;
+  if (S === 'tropic' || (S === 'north' && hall && !kitchen && r() < 0.5)) hearth = inMiddle(hearthRoom, 'firepit', S === 'north' ? 2.2 : 1.3, S === 'north' ? 1.0 : 1.3, 0.8, { h: 0.3 });
+  else if (S === 'east') { hearth = onWall(hearthRoom, 'kamado', { prefer: 'ext', front: 0.9, tall: true }); const ir = inMiddle(hall, 'irori', 0.95, 0.95, 0.9, { h: 0.1 }); if (ir) act(ir.x, ir.z + 0.95, Math.PI, 'sitlow', 0); }
+  else if (S === 'desert') hearth = onWall(hearthRoom, 'tannur', { prefer: 'ext', front: 0.9, pos: 'corner' });
+  if (!hearth) hearth = onWall(hearthRoom, kitchen && rich ? 'bigHearth' : 'hearth', { prefer: 'ext', pos: 'mid', front: 1.1, tall: true });
+  if (!hearth) hearth = inMiddle(hearthRoom, 'firepit', 1.3, 1.3, 0.7, { h: 0.3 });
+  if (hearth) {
+    const [fx, fz] = hearth.k === 'firepit' || hearth.k === 'irori' ? [hearth.x, hearth.z + 1.05] : front(hearth, 0.55);
+    P.cook = [fx, fz, hearth.k === 'firepit' ? Math.PI : hearth.rot + Math.PI, 'fire', hearth.l];
+    P.hearth = [hearth.x, hearth.z]; P.sweep = [fx + 0.6, fz + 0.6];
+    P.chat = [[fx - 0.8, fz + 0.4, (hearth.rot || 0) + Math.PI * 0.8], [fx + 0.8, fz + 0.4, (hearth.rot || 0) - Math.PI * 0.8]];
+  }
+  // the parlour or hall has its own fireplace in a better house
+  if (kitchen && hall && hall !== kitchen && S !== 'east' && S !== 'tropic' && (pf.wealth > 0.4 || S === 'north')) onWall(hall, S === 'desert' ? 'brazier' : 'hearth', { prefer: 'ext', pos: 'mid', front: 1.2, tall: S !== 'desert', size: S === 'desert' ? [0.7, 0.7, 0.9] : null });
+
+  // the table where the household eats
+  const eatRoom = P.rooms.find(R => R.type === 'dining') || (kitchen && (!rich || !hall) ? kitchen : hall) || hall;
+  const n = Math.min(8, Math.max(2, pf.owners.length + (rich ? 2 : 0)));
+  if (low && S !== 'desert') {
+    const tb = inMiddle(eatRoom, 'lowtable', 1.0, 0.85, 0.75, { h: 0.4, near: P.hearth });
+    if (tb) for (let i = 0; i < Math.min(4, n); i++) { const a = i * Math.PI / 2, sx2 = tb.x + Math.sin(a) * 0.85, sz2 = tb.z + Math.cos(a) * 0.8; P.seats.push([sx2, sz2, a + Math.PI, 'sitlow', null, tb.l]); P.items.push({ k: 'cushion', x: sx2, z: sz2, rot: a, l: tb.l, room: tb.room, w: 0.5, d: 0.5, h: 0.1 }); }
+    if (tb) P.table = [tb.x, tb.z, tb.l];
+  } else if (S === 'desert') {
+    const dv = onWall(eatRoom, 'divan', { prefer: 'ext', front: 1.2 });
+    if (dv) { const [fx, fz] = front(dv, 0.55); P.items.push({ k: 'traytable', x: fx, z: fz, rot: dv.rot, l: dv.l, room: dv.room, w: 0.8, d: 0.8, h: 0.4 }); eatRoom.occ.push(rect(fx, fz, 0.8, 0.8)); for (let i = -1; i <= 1; i++) { const c2 = Math.cos(dv.rot), s2 = Math.sin(dv.rot); P.seats.push([dv.x + c2 * i * 0.7, dv.z - s2 * i * 0.7, dv.rot, 'sit', null, dv.l]); } P.table = [fx, fz, dv.l]; }
+  } else {
+    const long = n > 4, tw = long ? Math.min(2.4, 1.2 + n * 0.18) : 1.35, td = long ? 0.95 : 0.85;
+    // in the open if it fits; else a smaller table, or one pushed against a wall; else in another room
+    const rooms2 = [eatRoom, kitchen, hall, ...P.rooms.filter(R => R.l === 0 && R.open == null && !R.hub && R.type !== 'washroom' && R.type !== 'pantry')].filter((R, i, a) => R && a.indexOf(R) === i);
+    let tb = null, wallT = false;
+    for (const R of rooms2) {
+      tb = inMiddle(R, rich ? 'tableRich' : 'table', tw, td, 0.62, { h: 0.78, near: P.hearth && R === hearthRoom ? [P.hearth[0] * 0.4, P.hearth[1] * 0.4 + 0.8] : null, rot: 0 })
+        || inMiddle(R, rich ? 'tableRich' : 'table', 1.2, 0.8, 0.55, { h: 0.78 });
+      if (tb) break;
+      tb = onWall(R, 'table', { size: [Math.min(tw, 1.4), 0.8, 0.78], front: 0.75, pos: 'mid' });
+      if (tb) { wallT = true; break; }
+    }
+    if (tb && wallT) {
+      // against the wall: seats along the open side and at the ends
+      P.table = [tb.x, tb.z, tb.l];
+      const c = Math.cos(tb.rot), sn = Math.sin(tb.rot), fwd = [sn, c], side = [c, -sn];
+      for (const [a, f, rr] of [[-0.35, 1, 0], [0.35, 1, 0], [-(tb.w / 2 + 0.36), 0, 1], [tb.w / 2 + 0.36, 0, -1]].slice(0, Math.max(2, Math.min(4, n)))) {
+        const px = tb.x + side[0] * a + fwd[0] * (f ? tb.d / 2 + 0.36 : 0), pz = tb.z + side[1] * a + fwd[1] * (f ? tb.d / 2 + 0.36 : 0), rot = f ? tb.rot + Math.PI : tb.rot + Math.PI + rr * Math.PI / 2;
+        P.seats.push([px, pz, rot, 'sit', null, tb.l]); P.items.push({ k: 'chair', x: px, z: pz, rot, l: tb.l, room: tb.room, w: 0.48, d: 0.48, h: 1.0 });
+      }
+      tb.n = Math.min(4, n); tb.w = Math.min(tw, 1.4); tb.d = 0.8;
+    } else if (tb) {
+      const tw2 = tb.w, td2 = tb.d; void tw2; void td2;
+      P.table = [tb.x, tb.z, tb.l];
+      const tw = tb.w, td = tb.d, places = [];
+      const per = Math.max(1, Math.floor(tw / 0.62));
+      for (let i = 0; i < per; i++) { const px = tb.x - tw / 2 + (i + 0.5) * tw / per; places.push([px, tb.z - td / 2 - 0.36, 0], [px, tb.z + td / 2 + 0.36, Math.PI]); }
+      places.push([tb.x - tw / 2 - 0.36, tb.z, Math.PI / 2], [tb.x + tw / 2 + 0.36, tb.z, -Math.PI / 2]);
+      // benches along the long sides in a plain house, chairs in a good one
+      const benches = !rich && (poor || r() < 0.45);
+      for (const [px, pz, rot] of places.slice(0, Math.max(n, 2) + (rich ? 2 : 0))) {
+        P.seats.push([px, pz, rot, 'sit', null, tb.l]);
+        if (!benches || Math.abs(Math.sin(rot)) > 0.5) P.items.push({ k: rich ? 'chairRich' : 'chair', x: px, z: pz, rot, l: tb.l, room: tb.room, w: 0.48, d: 0.48, h: 1.0 });
+      }
+      if (benches) for (const sd of [-1, 1]) P.items.push({ k: 'benchLoose', x: tb.x, z: tb.z + sd * (td / 2 + 0.36), rot: 0, l: tb.l, room: tb.room, w: tw * 0.95, d: 0.34, h: 0.46 });
+      tb.n = n;
+    }
+  }
+  // each room's own furniture
+  const sleepers = ixSleepers(pf), bedrooms = P.rooms.filter(R => R.open == null && (R.type === 'bedroom' || R.type === 'master' || R.type === 'kids')).sort((a, b) => (b.type === 'master') - (a.type === 'master') || (a.type === 'kids') - (b.type === 'kids'));
+  const bedsIn = new Map();
+  let bi = 0;
+  // couples in the best room, children in the children's room, the rest where they fit; if there are no bedrooms, beds go in the hall
+  const bedRooms = bedrooms.length ? bedrooms : [hall];
+  for (const grp of sleepers) {
+    const kid = grp[0].res.job === 'Child', dbl = grp.length === 2;
+    const order = bedRooms.slice().sort((a, b) => ((kid ? a.type !== 'kids' : a.type === 'kids') - (kid ? b.type !== 'kids' : b.type === 'kids')) || ((bedsIn.get(a.id) || 0) - (bedsIn.get(b.id) || 0)));
+    let B = null;
+    const k = S === 'east' ? 'futon' : S === 'tropic' || (poor && S === 'desert') ? 'mat' : poor && r() < 0.6 ? 'pallet' : kid ? 'bedK' : dbl ? 'bedD' : 'bedS';
+    for (const R of order) {
+      B = onWall(R, k, { pos: 'corner', front: 0.5, size: dbl && (k === 'futon' || k === 'mat' || k === 'pallet') ? [1.5, IX_F[k][1], IX_F[k][2]] : null, extra: { who: grp } });
+      if (B) { bedsIn.set(R.id, (bedsIn.get(R.id) || 0) + 1); break; }
+    }
+    if (!B) { grp.forEach(a => P.bedFor.set(a, [-1, 0])); continue; }
+    B.rich = rich && !kid; B.kid = kid;
+    P.beds.push({ x: B.x, z: B.z, rot: B.rot, w: B.w, kid, fy: B.l * IX_FY, mat: k === 'futon' || k === 'mat' || k === 'pallet', lieH: { futon: 0.17, mat: 0.2, pallet: 0.3 }[k] || (kid ? 0.55 : 0.62) });
+    grp.forEach((a, j) => P.bedFor.set(a, [P.beds.length - 1, dbl ? (j ? 0.38 : -0.38) : 0]));
+    bi++;
+  }
+  for (const R of P.rooms) {
+    if (R.open != null) continue;
+    const T = R.type, l = R.l;
+    const tidyish = pf.tidy > 0.45;
+    if (T === 'master' || T === 'bedroom' || T === 'kids') {
+      if (S === 'east') { onWall(R, 'cabinetE', { prefer: 'int', tall: true }); if (r() < 0.5) onWall(R, 'screen', { pos: 'corner' }); }
+      else {
+        if (T !== 'kids' && (rich || r() < 0.55)) onWall(R, rich ? 'wardrobe' : r() < 0.5 ? 'cupboard' : 'chest', { prefer: 'int', front: 0.5 });
+        if (!P.rooms.some(q => q.type === 'washroom') && r() < 0.8) { const ws = onWall(R, 'wash', { front: 0.55 }); if (ws) act(...front(ws, 0.35), ws.rot + Math.PI, 'idle', l, null, R.id); }
+        if (rich && T === 'master') onWall(R, 'commode', { prefer: 'int', front: 0.5 });
+        if (T === 'kids') { onWall(R, 'toys', {}); if (pf.kids.length) { const c = inMiddle(R, 'rugK', 1.4, 1.0, 0.2, { h: 0.01 }); if (c) act(c.x, c.z, r() * 6, 'sitlow', l, null, R.id); } }
+        if (r() < 0.6) onWall(R, 'pegs', { size: [1.2, 0.25, 1.9], extra: { wallOnly: true } });
+        if ((pf.green || rich) && r() < 0.5) onWall(R, 'plant', { pos: 'corner' });
+        if (pf.spinner && T === 'master' && r() < 0.5) { const sw = onWall(R, 'wheel', { front: 0.6 }); if (sw) act(...front(sw, 0.2), sw.rot + Math.PI, 'sit', l, null, R.id); }
+        if (rich || r() < 0.4) { const ch = onWall(R, 'chair', { size: [0.5, 0.5, 1.0] }); if (ch) act(ch.x, ch.z, ch.rot, 'sit', l, pf.bookish ? 'book' : null, R.id); }
+      }
+    } else if (T === 'kitchen' || (T === 'hall' && !kitchen)) {
+      if (S === 'east') { onWall(R, 'cabinetE', { prefer: 'int', tall: true }); onWall(R, 'barrel', { pos: 'corner' }); }
+      else {
+        const wt = onWall(R, S === 'med' || S === 'desert' ? 'worktableT' : 'worktable', { front: 0.7 });
+        if (wt) act(...front(wt, 0.3), wt.rot + Math.PI, 'idle', l, null, R.id);
+        onWall(R, rich || r() < 0.5 ? 'dresser' : 'shelf', { prefer: 'int', front: 0.4, tall: true });
+        if (r() < 0.6) onWall(R, 'shelf', { prefer: 'int', tall: true });
+      }
+      for (let i = 0, nb = 1 + Math.floor(r() * 3); i < nb; i++) onWall(R, i === 0 ? 'barrel' : r() < 0.5 ? 'sacks' : 'crates', { pos: 'corner' });
+      onWall(R, 'bucket', { pos: 'corner' });
+      if (T === 'hall') { onWall(R, rich ? 'settle' : 'bench', { front: 0.5 }); if (r() < 0.5) onWall(R, 'chest', {}); }
+    } else if (T === 'hall' || T === 'parlour' || T === 'solar') {
+      if (S === 'east') { const tk = onWall(R, 'tokonoma', { prefer: 'int', pos: 'mid', tall: true }); if (tk) act(...front(tk, 0.9), tk.rot + Math.PI, 'kneel', l, null, R.id); onWall(R, 'cabinetE', { prefer: 'int', tall: true }); if (r() < 0.6) onWall(R, 'screen', { pos: 'corner' }); }
+      else if (S === 'desert') { onWall(R, 'divan', { front: 0.8 }); onWall(R, 'chest', {}); if (r() < 0.6) onWall(R, 'plant', { pos: 'corner' }); }
+      else {
+        const nArm = rich ? 2 : pf.wealth > 0.35 ? 1 : 0;
+        for (let i = 0; i < nArm; i++) { const ac = onWall(R, 'armchair', { front: 0.4, pos: i ? 'mid' : 'corner' }); if (ac) act(ac.x, ac.z, ac.rot, 'sit', l, pf.bookish ? 'book' : pf.music && i ? null : 'mug', R.id); }
+        onWall(R, rich && r() < 0.6 ? 'sofa' : 'settle', { front: 0.7 });
+        if (rich || r() < 0.5) onWall(R, rich ? 'commode' : 'cupboard', { prefer: 'int', front: 0.4 });
+        if (pf.bookish) onWall(R, 'books', { prefer: 'int', tall: true, front: 0.5 });
+        if (pf.spinner && r() < 0.5) { const sw = onWall(R, 'wheel', { front: 0.6 }); if (sw) act(...front(sw, 0.2), sw.rot + Math.PI, 'sit', l, null, R.id); }
+        if (pf.green || rich) onWall(R, 'plant', { pos: 'corner' });
+        if (rich && r() < 0.6) { const cs = inMiddle(R, 'chess', 0.7, 0.7, 0.55, { h: 0.7 }); if (cs) { act(cs.x - 0.6, cs.z, Math.PI / 2, 'sit', l, null, R.id); act(cs.x + 0.6, cs.z, -Math.PI / 2, 'sit', l, null, R.id); } }
+      }
+      if (T === 'solar' && S !== 'east') onWall(R, 'chest', {});
+    } else if (T === 'dining') {
+      onWall(R, rich ? 'commode' : 'cupboard', { prefer: 'int', pos: 'mid', front: 0.4 });
+      if (rich) onWall(R, 'dresser', { prefer: 'int', tall: true });
+      if (pf.green) onWall(R, 'plant', { pos: 'corner' });
+    } else if (T === 'washroom') {
+      const tub = S === 'east' ? onWall(R, 'ofuro', { pos: 'corner', size: [1.1, 1.1, 0.75] }) : onWall(R, rich ? 'bath' : 'tub', { pos: 'corner', front: 0.4, size: rich ? [1.6, 0.8, 0.62] : [1.0, 1.0, 0.6] });
+      if (tub) act(...front(tub, 0.3), tub.rot + Math.PI, 'idle', l, null, R.id);
+      const ws = onWall(R, 'wash', { front: 0.5 }); if (ws) act(...front(ws, 0.35), ws.rot + Math.PI, 'idle', l, null, R.id);
+      onWall(R, 'closestool', { pos: 'corner' });
+      onWall(R, 'towel', { extra: { wallOnly: true } });
+      if (S !== 'east' && r() < 0.6) onWall(R, 'shelf', { prefer: 'int', size: [0.8, 0.35, 1.6], tall: true });
+      onWall(R, 'bucket', { pos: 'corner' });
+    } else if (T === 'pantry' || T === 'store') {
+      for (let i = 0; i < 3; i++) onWall(R, 'shelf', { prefer: 'int', size: [1.2, 0.45, 1.95], tall: true });
+      for (let i = 0; i < 3 + Math.floor(r() * 3); i++) onWall(R, ['barrel', 'sacks', 'crates', 'chest'][Math.floor(r() * (T === 'store' ? 4 : 3))], { pos: 'corner' });
+      if (T === 'store' && r() < 0.5) onWall(R, 'wheel', {});
+      if (T === 'store' && r() < 0.5) onWall(R, 'ladder', { pos: 'corner' });
+    } else if (T === 'workshop') {
+      const tr = onWall(R, 'trade', { prefer: 'ext', pos: 'mid', front: 0.8, tall: true });
+      if (tr) { P.work = [...front(tr, 0.35), tr.rot + Math.PI]; P.work.l = l; }
+      onWall(R, 'worktable', { front: 0.6 });
+      for (let i = 0; i < 2; i++) onWall(R, r() < 0.5 ? 'crates' : 'barrel', { pos: 'corner' });
+    } else if (T === 'study') {
+      const dk = onWall(R, 'desk', { prefer: 'ext', front: 0.75 });
+      if (dk) { const [fx, fz] = front(dk, 0.2); P.items.push({ k: 'chairRich', x: fx, z: fz, rot: dk.rot + Math.PI, l, room: R.id, w: 0.5, d: 0.5, h: 1 }); act(fx, fz, dk.rot, 'sit', l, 'book', R.id); }
+      for (let i = 0; i < 2; i++) onWall(R, 'books', { prefer: 'int', tall: true, front: 0.4 });
+      onWall(R, 'chest', {});
+    } else if (T === 'landing') {
+      if (r() < 0.6) onWall(R, 'chest', {});
+      if (pf.green && r() < 0.6) onWall(R, 'plant', { pos: 'corner' });
+    }
+    // floor coverings
+    if (T !== 'pantry' && T !== 'store' && T !== 'washroom' && T !== 'workshop' && S !== 'east' && (rich || r() < (S === 'desert' ? 0.95 : 0.45))) {
+      const rw = Math.min(3.2, (R.x1 - R.x0) * 0.55), rd = Math.min(2.4, (R.z1 - R.z0) * 0.5);
+      const rx = (R.x0 + R.x1) / 2, rz = (R.z0 + R.z1) / 2, rq = [rx - rw / 2, rx + rw / 2, rz - rd / 2, rz + rd / 2];
+      if (P.items.some(it => it.room === R.id && /firepit|irori|brazier|tannur/.test(it.k) && it.q && ixRectsOverlap(it.q, rq, 0.3))) continue;
+      if (rw > 1.1 && rd > 0.8) P.items.push({ k: 'rug', x: (R.x0 + R.x1) / 2 + (r() - 0.5) * 0.4, z: (R.z0 + R.z1) / 2 + (r() - 0.5) * 0.4, rot: r() < 0.5 ? 0 : Math.PI / 2 * 0, w: rw, d: rd, h: 0.01, l, room: R.id });
+    }
+  }
+  // a trade corner in the hall if there was no workshop
+  if (!P.work && pf.boss && !/Child|Idler|Retired/.test(pf.boss.res.job)) {
+    const R = hall.type === 'hall' ? hall : P.rooms.find(q => q.l === 0 && q.open == null && q.type !== 'washroom') || hall;
+    const tr = onWall(R, 'trade', { front: 0.6, tall: true });
+    if (tr) { P.work = [...front(tr, 0.35), tr.rot + Math.PI]; P.work.l = tr.l; }
+  }
+  if (!P.work) P.work = P.cook ? [P.cook[0] + 0.8, P.cook[1] + 0.6, 0] : [0, P.Z - 2, 0];
+  if (!P.cook) P.cook = [0, 0, 0, 'fire', 0];
+  if (!P.seats.length) P.seats.push([0.5, 0.5, 0, 'sitlow', null, 0]);
+  // a nightstand at the head of each bed, where there's room
+  const tryAt = (R, k, x, z, rot, w, d, h, extra) => { const q = Math.abs(Math.sin(rot)) > 0.5 ? rect(x, z, d, w) : rect(x, z, w, d); if (!free(R, q)) return null; return add(R, Object.assign({ k, x, z, rot, w, d, h }, extra || {}), q); };
+  for (const it of P.items.slice()) if (/^bed[SDK]$/.test(it.k) && S !== 'east') {
+    const R = P.rooms[it.room], c = Math.cos(it.rot), sn = Math.sin(it.rot), back = [-sn * (it.d / 2 - 0.25), -c * (it.d / 2 - 0.25)];
+    for (const sd of r() < 0.5 ? [1, -1] : [-1, 1]) { const off = sd * (it.w / 2 + 0.3), nx = it.x + back[0] + c * off, nz = it.z + back[1] - sn * off; if (tryAt(R, 'night', nx, nz, it.rot, 0.48, 0.44, 0.66)) break; }
+  }
+  // then each room is filled out with the ordinary things of a household, more in a richer house, more lying about in a messy one
+  for (const R of P.rooms) {
+    if (R.open != null || pf.empty) continue;
+    const T = R.type, A = (R.x1 - R.x0) * (R.z1 - R.z0), have = P.items.filter(it => it.room === R.id && !it.wallArt && it.k !== 'rug').length;
+    const want = Math.round(A * (0.34 + pf.wealth * 0.26 + (1 - pf.tidy) * 0.08));
+    const pool = T === 'kitchen' ? ['logs', 'basketF', 'barrel', 'stoolW', 'bucket', 'sacks'] : T === 'hall' ? ['logs', 'basketF', 'stoolW', 'chest', 'sideTable', 'plant', 'bucket'] : T === 'parlour' || T === 'solar' ? (rich ? ['pedestal', 'sideTable', 'plant', 'armchair', 'chest', 'basketF'] : ['sideTable', 'stoolW', 'plant', 'basketF', 'chest'])
+      : T === 'master' || T === 'bedroom' ? ['chest', 'basketF', 'stoolW', 'sideTable', 'plant'] : T === 'kids' ? ['basketF', 'stoolW', 'chest'] : T === 'dining' ? ['sideTable', 'plant', rich ? 'pedestal' : 'stoolW'] : T === 'study' ? ['sideTable', 'pedestal', 'plant', 'chest'] : T === 'workshop' ? ['crates', 'barrel', 'basketF', 'stoolW', 'logs'] : T === 'pantry' || T === 'store' ? ['crates', 'sacks', 'barrel', 'basketF'] : T === 'washroom' ? ['basketF', 'stoolW'] : ['basketF', 'chest'];
+    const east2 = S === 'east' ? ['basketF', 'cushionS'] : null;
+    for (let i = have, tries = 0; i < want && tries < 30; tries++) {
+      const k = (east2 || pool)[Math.floor(r() * (east2 || pool).length)];
+      if (k === 'logs' && !P.items.some(it => it.room === R.id && /hearth|Hearth|firepit|kamado/.test(it.k))) continue;
+      if (k === 'cushionS') { const c = inMiddle(R, 'cushion', 0.5, 0.5, 0.3, { h: 0.1 }); if (c) i++; continue; }
+      if (onWall(R, k, { pos: k === 'logs' ? 'mid' : r() < 0.5 ? 'corner' : null })) i++;
+    }
+  }
+  // doorways and partition ends mark where the painted windows must not show from inside
+  for (const w of P.walls) for (const [a, e] of [[w.a0, 0], [w.a1, 1]]) {
+    void e;
+    const onExt = w.ax === 'x' ? Math.abs(Math.abs(a) - P.Z) < 0.05 : Math.abs(Math.abs(a) - P.X) < 0.05;
+    if (!onExt) continue;
+    const zx = w.ax === 'x' ? [w.c - 0.75, w.c + 0.75, a - 0.4, a + 0.4] : [a - 0.4, a + 0.4, w.c - 0.75, w.c + 0.75];
+    P.zones.push([...zx, w.l]);
+  }
+  // art, mirrors, icons and hangings on the walls, the better the house the more of them
+  ixWallDecor(P, r);
+}
+function ixWallDecor(P, r) {
+  const pf = P.pf, S = pf.sty, seen = {};
+  for (const R of P.rooms) {
+    if (R.open != null) continue;
+    const T = R.type, l = R.l;
+    let nArt = T === 'pantry' || T === 'store' || T === 'washroom' ? 0 : T === 'landing' ? 1 : Math.min(3, Math.round(pf.wealth * 2.4 + (r() - 0.5)));
+    if (T === 'kitchen') nArt = Math.min(nArt, 1);
+    const kinds = [];
+    for (let i = 0; i < nArt; i++) {
+      if (S === 'east') kinds.push(i === 0 && T !== 'kitchen' ? 'scroll' : r() < 0.5 ? 'scroll' : 'fan');
+      else if (S === 'desert') kinds.push(r() < 0.5 ? 'hanging' : r() < 0.5 ? 'platesW' : 'lamp');
+      else if (S === 'north') kinds.push(r() < 0.35 && pf.hunter ? 'antlers' : r() < 0.5 ? 'shield' : 'tapestry');
+      else if (T === 'kitchen') kinds.push(r() < 0.6 ? 'platesW' : 'pans');
+      else if (pf.wealth > 0.55) kinds.push(r() < 0.75 ? 'painting' : r() < 0.5 ? 'tapestry' : 'mirror');
+      else kinds.push(pf.pious && i === 0 ? 'icon' : r() < 0.4 ? 'sampler' : r() < 0.6 ? 'print' : 'platesW');
+    }
+    if (pf.pious && S !== 'east' && S !== 'desert' && (T === 'master' || T === 'bedroom') && r() < 0.7) kinds.push('cross');
+    if (T === 'washroom' && S !== 'east') kinds.push('mirror');
+    if ((T === 'hall' || T === 'parlour') && pf.hunter && S !== 'east' && r() < 0.6) kinds.push(r() < 0.5 ? 'antlers' : 'weapons');
+    for (let kd of kinds) {
+      seen[kd] = (seen[kd] || 0) + 1;
+      if ((kd === 'icon' || kd === 'cross') && seen[kd] > 2) kd = r() < 0.5 ? 'sampler' : 'print';
+      if (kd === 'painting' && seen[kd] > 8) continue;
+      const size = { painting: [0.7 + r() * 0.6, 0.06, 0.9], tapestry: [1.3, 0.05, 1.6], mirror: [0.55, 0.06, 0.8], icon: [0.35, 0.05, 0.45], sampler: [0.45, 0.04, 0.55], print: [0.45, 0.04, 0.55], platesW: [1.0, 0.1, 0.5], pans: [1.0, 0.15, 0.6],
+        scroll: [0.6, 0.04, 1.6], fan: [0.7, 0.04, 0.4], hanging: [1.2, 0.04, 1.5], lamp: [0.3, 0.3, 0.5], antlers: [0.8, 0.4, 0.6], shield: [0.7, 0.12, 0.8], weapons: [1.2, 0.2, 0.8], cross: [0.3, 0.05, 0.45] }[kd];
+      // on a stretch of wall above anything low, clear of doors and of anything tall
+      const walls = R.edges.slice().sort(() => r() - 0.5).sort((a, b) => a.ext - b.ext);
+      let placed = false;
+      for (const e of walls) {
+        if (placed) break;
+        for (let tt = 0; tt < 14 && !placed; tt++) {
+          const t2 = e.a0 + size[0] / 2 + 0.2 + r() * Math.max(0, e.a1 - e.a0 - size[0] - 0.4);
+          if (e.open.some(([a, b]) => t2 + size[0] / 2 > a - 0.1 && t2 - size[0] / 2 < b + 0.1)) continue;
+          const horiz = e.s === 'N' || e.s === 'S', q = horiz ? [t2 - size[0] / 2, t2 + size[0] / 2, e.c - 0.4, e.c + 0.4] : [e.c - 0.4, e.c + 0.4, t2 - size[0] / 2, t2 + size[0] / 2];
+          if (P.items.some(it => it.l === l && it.q && it.h > 1.2 && ixRectsOverlap(it.q, q, 0.05))) continue;
+          if (P.items.some(it => it.l === l && it.wallArt && ixRectsOverlap(it.q, q, 0.25))) continue;
+          const lowUnder = P.items.filter(it => it.l === l && it.q && ixRectsOverlap(it.q, q, 0)).reduce((m, it) => Math.max(m, it.h || 0), 0);
+          const y = Math.max(lowUnder + 0.35 + size[2] / 2, kd === 'platesW' || kd === 'pans' ? 1.75 : 1.55);
+          if (y + size[2] / 2 > P.ceil[l] - 0.15) continue;
+          const g = 0.02, x = horiz ? t2 : e.s === 'W' ? e.c + size[1] / 2 + g : e.c - size[1] / 2 - g, z = horiz ? (e.s === 'N' ? e.c + size[1] / 2 + g : e.c - size[1] / 2 - g) : t2;
+          P.items.push({ k: kd, x, z, y, rot: IX_ROT[e.s], w: size[0], d: size[1], h: 0, hh: size[2], l, room: R.id, q, wallArt: true, seed: Math.floor(r() * 1e6) });
+          P.zones.push([q[0] - 0.5, q[1] + 0.5, q[2] - 0.5, q[3] + 0.5, l]);
+          placed = true;
+        }
+      }
+    }
+  }
+}
+
+/* ---------- painted textiles and small things: rugs, samplers, tapestries, cobwebs, grime, bread and cheese ---------- */
+const IX_CT = new Map();
+function ixCanvas(key, w, h, draw, o = {}) {
+  let t = IX_CT.get(key);
+  if (t) return t;
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d'), r = G.mkRng((Array.from(key).reduce((a, ch) => a * 31 + ch.charCodeAt(0), 7) >>> 0));
+  draw(g, w, h, r);
+  t = new THREE.CanvasTexture(c);
+  t.colorSpace = o.linear ? THREE.NoColorSpace : THREE.SRGBColorSpace; t.anisotropy = 8;
+  t.wrapS = t.wrapT = o.clamp ? THREE.ClampToEdgeWrapping : THREE.RepeatWrapping;
+  IX_CT.set(key, t);
+  return t;
+}
+const IX_DYES = [['#7a1c1c', '#c89a4a', '#1e2c4a', '#e8dcc0', '#3a5a3a'], ['#8a2a1a', '#e0b060', '#2a4a6a', '#f0e8d0', '#5a2a3a'], ['#2a3a5a', '#c8a050', '#8a2020', '#e8e0c8', '#3a6a5a'],
+  ['#5a1a2a', '#d8b870', '#2a4a3a', '#efe6d0', '#8a4a1a'], ['#1a4a4a', '#d0a060', '#7a2a1a', '#e8dcc8', '#3a2a4a'], ['#6a3a1a', '#e8c880', '#3a2a1a', '#f0e8d8', '#8a2a2a']];
+// a knotted carpet: field, medallion, borders, fringe, and the wool's own nap
+function ixRugTex(seed, kind) {
+  return ixCanvas('rug' + kind + seed, 1024, 768, (g, w, h, r) => {
+    const P = IX_DYES[seed % IX_DYES.length];
+    if (kind === 'kilim') {
+      // flat-woven: bands of stepped diamonds and zigzags
+      const bands = 7 + Math.floor(r() * 5), bh = h / bands;
+      for (let b = 0; b < bands; b++) {
+        g.fillStyle = P[(b + seed) % 5]; g.fillRect(0, b * bh, w, bh);
+        const c2 = P[(b + seed + 2) % 5], nd = 6 + Math.floor(r() * 6), dw = w / nd;
+        g.fillStyle = c2;
+        for (let i = 0; i < nd; i++) { const cx = (i + 0.5) * dw, cy = (b + 0.5) * bh; for (let s = 0; s < 6; s++) { const ww = dw * 0.45 * (1 - s / 6), hh = bh * 0.8 / 6; g.fillRect(cx - ww, cy - bh * 0.4 + s * hh, ww * 2, hh * 0.9); g.fillRect(cx - ww, cy + bh * 0.4 - (s + 1) * hh, ww * 2, hh * 0.9); } }
+        g.fillStyle = P[(b + seed + 3) % 5]; for (let x = 0; x < w; x += 16) g.fillRect(x, b * bh + ((x / 16) % 2) * 4, 8, 4);
+      }
+    } else if (kind === 'rag') {
+      // a braided rag rug of old clothes
+      g.fillStyle = '#6a5a4a'; g.fillRect(0, 0, w, h);
+      const cols = ['#8a6a4a', '#5a4a3a', '#9a8060', '#6a4030', '#4a5a6a', '#8a7a5a', '#a08a6a', '#5a3a2a'];
+      for (let k = 0; k < 40; k++) { g.strokeStyle = cols[Math.floor(r() * cols.length)]; g.lineWidth = 14; g.beginPath(); g.ellipse(w / 2, h / 2, w / 2 - 10 - k * 12, h / 2 - 10 - k * 9, 0, 0, 6.3); if (w / 2 - 10 - k * 12 < 20 || h / 2 - 10 - k * 9 < 10) break; g.stroke(); }
+      for (let i = 0; i < 9000; i++) { g.fillStyle = `rgba(${r() < 0.5 ? '0,0,0' : '255,240,220'},${r() * 0.12})`; g.fillRect(r() * w, r() * h, 3, 2); }
+      return;
+    } else {
+      g.fillStyle = P[0]; g.fillRect(0, 0, w, h);
+      // field of small repeating flowers
+      for (let y = 60; y < h - 60; y += 34) for (let x = 60; x < w - 60; x += 34) { g.fillStyle = (x + y) % 68 ? P[4] : P[1]; g.beginPath(); for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2; g.ellipse(x + Math.cos(a) * 5, y + Math.sin(a) * 5, 4, 2.2, a, 0, 6.3); } g.fill(); }
+      // the central medallion
+      g.save(); g.translate(w / 2, h / 2);
+      for (let s = 5; s >= 1; s--) { g.fillStyle = P[s % 5]; g.beginPath(); for (let k = 0; k <= 16; k++) { const a = k / 16 * Math.PI * 2, rr = (s * 34) * (k % 2 ? 0.72 : 1); g.lineTo(Math.cos(a) * rr * 1.3, Math.sin(a) * rr); } g.fill(); }
+      g.restore();
+      for (const [cx, cy] of [[100, 90], [w - 100, 90], [100, h - 90], [w - 100, h - 90]]) { g.fillStyle = P[2]; g.beginPath(); g.moveTo(cx - 60, cy); g.lineTo(cx, cy - 40); g.lineTo(cx + 60, cy); g.lineTo(cx, cy + 40); g.fill(); }
+      // borders: a wide guard between two narrow ones
+      const band = (o2, bw, c) => { g.strokeStyle = c; g.lineWidth = bw; g.strokeRect(o2, o2, w - o2 * 2, h - o2 * 2); };
+      band(18, 12, P[3]); band(40, 30, P[2]); band(62, 8, P[1]);
+      g.fillStyle = P[1]; for (let x = 40; x < w - 40; x += 26) { g.beginPath(); g.arc(x, 40, 6, 0, 6.3); g.arc(x, h - 40, 6, 0, 6.3); g.fill(); } for (let y = 40; y < h - 40; y += 26) { g.beginPath(); g.arc(40, y, 6, 0, 6.3); g.arc(w - 40, y, 6, 0, 6.3); g.fill(); }
+    }
+    // the nap of the wool and wear down the middle
+    for (let i = 0; i < 26000; i++) { g.fillStyle = `rgba(${r() < 0.5 ? '0,0,0' : '255,245,225'},${r() * 0.09})`; g.fillRect(r() * w, r() * h, 2, 2); }
+    const wear = g.createRadialGradient(w / 2, h / 2, 10, w / 2, h / 2, w * 0.6); wear.addColorStop(0, 'rgba(230,215,190,0.18)'); wear.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = wear; g.fillRect(0, 0, w, h);
+    g.fillStyle = '#e8dcc0'; for (let x = 0; x < w; x += 6) { g.fillRect(x, 0, 3, 8); g.fillRect(x, h - 8, 3, 8); }
+  }, { clamp: true });
+}
+// a child's cross-stitch sampler: alphabet, a house, trees and a border
+function ixSamplerTex(seed) {
+  return ixCanvas('sampler' + seed, 256, 320, (g, w, h, r) => {
+    g.fillStyle = '#e6dcc4'; g.fillRect(0, 0, w, h);
+    const cols = ['#8a1c1c', '#1c3a6a', '#2a5a2a', '#6a3a1a'], px = 4;
+    const st = (x, y, c) => { g.strokeStyle = c; g.lineWidth = 1.4; g.beginPath(); g.moveTo(x, y); g.lineTo(x + px, y + px); g.moveTo(x + px, y); g.lineTo(x, y + px); g.stroke(); };
+    for (let x = 8; x < w - 8; x += px) { st(x, 8, cols[0]); st(x, h - 12, cols[0]); if ((x / px) % 3 === 0) { st(x, 14, cols[2]); st(x, h - 18, cols[2]); } }
+    for (let y = 8; y < h - 8; y += px) { st(8, y, cols[0]); st(w - 12, y, cols[0]); }
+    g.fillStyle = cols[1]; g.font = 'bold 15px serif';
+    const rows = ['ABCDEFGHIJ', 'KLMNOPQRS', 'TUVWXYZ &', '1 2 3 4 5 6'];
+    rows.forEach((s, i) => { for (let k = 0; k < s.length; k++) { g.fillStyle = cols[(i + k) % 3 === 0 ? 0 : 1]; g.fillText(s[k], 24 + k * 21, 50 + i * 26); } });
+    // a little house between two trees
+    const hx = 88, hy = 170;
+    for (let y = 0; y < 12; y++) for (let x = 0; x < 20; x++) st(hx + x * px, hy + 40 + y * px, y < 2 || x < 1 || x > 18 ? cols[3] : (x > 7 && x < 12 && y > 5) ? cols[3] : cols[0]);
+    for (let y = 0; y < 10; y++) for (let x = -y; x <= y + 19; x++) if (x >= -1 && x <= 20) st(hx + x * px, hy + y * px, cols[3]);
+    for (const tx of [40, 196]) { for (let y = 0; y < 12; y++) for (let x = -Math.floor(y / 2); x <= Math.floor(y / 2); x++) st(tx + x * px, hy + 10 + y * px, cols[2]); for (let y = 0; y < 5; y++) st(tx, hy + 58 + y * px, cols[3]); }
+    g.fillStyle = cols[1]; g.font = 'italic 13px serif'; g.fillText(['Bless this house', 'Wrought by my hand', 'Home is best', 'Peace be here'][seed % 4], 58, h - 36);
+  }, { clamp: true });
+}
+// a tapestry: millefleur ground, a beast or a figure, a border, and the weave
+function ixTapestryTex(seed) {
+  return ixCanvas('tap' + seed, 512, 640, (g, w, h, r) => {
+    const grounds = ['#2a3a2a', '#5a1a1a', '#1a2a4a', '#3a2a1a'];
+    g.fillStyle = grounds[seed % 4]; g.fillRect(0, 0, w, h);
+    for (let i = 0; i < 420; i++) { const x = r() * w, y = r() * h, c = ['#e8d8a8', '#c84a3a', '#e8a040', '#8ab0d0', '#f0e8d8', '#6a9a4a'][Math.floor(r() * 6)]; g.strokeStyle = '#4a6a3a'; g.lineWidth = 2; g.beginPath(); g.moveTo(x, y + 12); g.lineTo(x, y); g.stroke(); g.fillStyle = c; for (let k = 0; k < 5; k++) { const a = k / 5 * 6.28; g.beginPath(); g.arc(x + Math.cos(a) * 4, y + Math.sin(a) * 4, 3, 0, 6.3); g.fill(); } }
+    // a white hart or a unicorn in the middle
+    g.fillStyle = '#efe8da'; g.save(); g.translate(w / 2, h / 2 + 40);
+    g.beginPath(); g.ellipse(0, 0, 90, 46, 0, 0, 6.3); g.fill();
+    g.beginPath(); g.ellipse(88, -60, 26, 40, 0.5, 0, 6.3); g.fill();
+    g.beginPath(); g.ellipse(112, -92, 22, 14, 0.3, 0, 6.3); g.fill();
+    for (const [lx, a] of [[-60, 0.1], [-35, -0.1], [45, 0.1], [70, -0.05]]) { g.save(); g.translate(lx, 30); g.rotate(a); g.fillRect(-7, 0, 14, 90); g.restore(); }
+    g.strokeStyle = '#d8b050'; g.lineWidth = 5; g.beginPath(); g.moveTo(118, -100); g.lineTo(150, -160); g.stroke();
+    g.restore();
+    g.strokeStyle = '#c8a050'; g.lineWidth = 22; g.strokeRect(11, 11, w - 22, h - 22); g.strokeStyle = '#6a1a1a'; g.lineWidth = 6; g.strokeRect(26, 26, w - 52, h - 52);
+    for (let y = 0; y < h; y += 3) { g.fillStyle = `rgba(0,0,0,${0.05 + r() * 0.05})`; g.fillRect(0, y, w, 1); }
+    for (let i = 0; i < 9000; i++) { g.fillStyle = `rgba(255,240,210,${r() * 0.07})`; g.fillRect(r() * w, r() * h, 2, 1); }
+  }, { clamp: true });
+}
+function ixCobwebTex() {
+  return ixCanvas('cobweb', 256, 256, (g, w, h, r) => {
+    g.clearRect(0, 0, w, h); g.strokeStyle = 'rgba(235,235,230,0.55)'; g.lineWidth = 1;
+    const spokes = 9, ang = [];
+    for (let i = 0; i < spokes; i++) { const a = (i / (spokes - 1)) * Math.PI / 2; ang.push(a); g.beginPath(); g.moveTo(0, 0); g.lineTo(Math.cos(a) * w * 1.3, Math.sin(a) * h * 1.3); g.stroke(); }
+    for (let rr = 18; rr < w * 1.2; rr += 14 + r() * 10) { g.beginPath(); ang.forEach((a, i) => { const k = rr * (0.92 + r() * 0.16), x = Math.cos(a) * k, y = Math.sin(a) * k; if (i) g.quadraticCurveTo(Math.cos(a - 0.1) * k * 0.94, Math.sin(a - 0.1) * k * 0.94, x, y); else g.moveTo(x, y); }); g.stroke(); }
+    g.fillStyle = 'rgba(120,110,100,0.35)'; for (let i = 0; i < 30; i++) g.fillRect(r() * w * 0.5, r() * h * 0.5, 2, 2);
+  }, { clamp: true });
+}
+function ixGrimeTex(k) {
+  return ixCanvas('grime' + k, 512, 512, (g, w, h, r) => {
+    g.clearRect(0, 0, w, h);
+    for (let i = 0; i < 60; i++) { const x = w / 2 + (r() - 0.5) * w * 0.7, y = h / 2 + (r() - 0.5) * h * 0.7, rr = 20 + r() * 90; const gr = g.createRadialGradient(x, y, 0, x, y, rr); gr.addColorStop(0, `rgba(${40 + r() * 30},${30 + r() * 20},${20},${0.12 + r() * 0.2})`); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(x - rr, y - rr, rr * 2, rr * 2); }
+    if (k === 'straw') { g.lineCap = 'round'; for (let i = 0; i < 1400; i++) { const x = r() * w, y = r() * h, a = r() * 6.3, l = 6 + r() * 16, e = Math.hypot(x - w / 2, y - h / 2) / (w * 0.5); if (e > 1 || r() < e * e) continue; g.strokeStyle = `rgba(${150 + r() * 40},${125 + r() * 35},${70 + r() * 25},${0.25 + r() * 0.3})`; g.lineWidth = 0.6 + r() * 0.8; g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); g.stroke(); } }
+    if (k === 'spill') { g.fillStyle = 'rgba(70,40,30,0.35)'; g.beginPath(); g.ellipse(w / 2, h / 2, w * 0.3, h * 0.18, r(), 0, 6.3); g.fill(); }
+  }, { clamp: true });
+}
+function ixCrustTex() {
+  return ixCanvas('crust', 256, 256, (g, w, h, r) => {
+    const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#a8662a'); gr.addColorStop(0.5, '#c8883e'); gr.addColorStop(1, '#8a5222'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
+    for (let i = 0; i < 2600; i++) { g.fillStyle = `rgba(${r() < 0.5 ? '255,230,190' : '70,35,10'},${r() * 0.25})`; g.fillRect(r() * w, r() * h, 1 + r() * 3, 1 + r() * 2); }
+    for (let i = 0; i < 900; i++) { g.fillStyle = 'rgba(245,238,225,0.35)'; g.fillRect(r() * w, r() * h * 0.5, 1.5, 1.5); }
+    g.strokeStyle = 'rgba(240,210,160,0.7)'; g.lineWidth = 6; for (let i = 0; i < 4; i++) { g.beginPath(); g.moveTo(40 + i * 50, 30); g.lineTo(60 + i * 50, 100); g.stroke(); }
+  });
+}
+function ixRindTex() {
+  return ixCanvas('rind', 256, 128, (g, w, h, r) => {
+    g.fillStyle = '#d8a040'; g.fillRect(0, 0, w, h);
+    for (let i = 0; i < 3000; i++) { g.fillStyle = `rgba(${r() < 0.5 ? '120,70,20' : '250,220,140'},${r() * 0.2})`; g.fillRect(r() * w, r() * h, 2, 2); }
+    g.strokeStyle = 'rgba(110,60,20,0.35)'; g.lineWidth = 2; for (let y = 10; y < h; y += 18) { g.beginPath(); g.moveTo(0, y); g.lineTo(w, y + (r() - 0.5) * 4); g.stroke(); }
+  });
+}
+// a plate painted the way the potters of each country paint them
+function ixPlateTex(seed, sty) {
+  return ixCanvas('plate' + sty + seed, 256, 256, (g, w, h, r) => {
+    const cx = w / 2, cy = h / 2;
+    g.fillStyle = sty === 'east' ? '#eef0f0' : '#efe6d0'; g.beginPath(); g.arc(cx, cy, w / 2, 0, 6.3); g.fill();
+    const c1 = sty === 'east' ? '#1a3a8a' : sty === 'med' ? ['#1a4a9a', '#d8801a', '#2a7a3a'][seed % 3] : sty === 'desert' ? '#1a6a8a' : ['#1a3a7a', '#7a2a1a', '#3a5a2a'][seed % 3];
+    g.strokeStyle = c1; g.lineWidth = 6; g.beginPath(); g.arc(cx, cy, w / 2 - 12, 0, 6.3); g.stroke(); g.lineWidth = 2; g.beginPath(); g.arc(cx, cy, w * 0.28, 0, 6.3); g.stroke();
+    g.fillStyle = c1;
+    const n = 8 + (seed % 5);
+    for (let i = 0; i < n; i++) { const a = i / n * 6.283; g.save(); g.translate(cx + Math.cos(a) * w * 0.38, cy + Math.sin(a) * w * 0.38); g.rotate(a); g.beginPath(); g.ellipse(0, 0, 13, 5, 0, 0, 6.3); g.fill(); g.restore(); }
+    g.save(); g.translate(cx, cy);
+    for (let k = 0; k < 6; k++) { g.rotate(Math.PI / 3); g.beginPath(); g.ellipse(0, -w * 0.13, w * 0.05, w * 0.12, 0, 0, 6.3); g.fill(); }
+    g.restore();
+    for (let i = 0; i < 900; i++) { g.fillStyle = `rgba(80,60,40,${r() * 0.06})`; g.fillRect(r() * w, r() * h, 2, 2); }
+  });
+}
+function ixSpineTex() {
+  return ixCanvas('spines', 512, 256, (g, w, h, r) => {
+    let x = 0;
+    while (x < w) {
+      const bw = 14 + r() * 22, c = ['#5a1a14', '#1e2a4a', '#2a3a1e', '#4a2a14', '#6a4a1a', '#3a1a2a', '#7a5a3a', '#2a2018'][Math.floor(r() * 8)];
+      g.fillStyle = c; g.fillRect(x, 0, bw, h);
+      g.fillStyle = 'rgba(210,170,80,0.8)'; for (const y of [h * 0.12, h * 0.2, h * 0.8, h * 0.88]) g.fillRect(x + 2, y, bw - 4, 3);
+      g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(x, 0, 2, h);
+      g.fillStyle = 'rgba(255,255,255,0.07)'; g.fillRect(x + bw * 0.3, 0, bw * 0.2, h);
+      x += bw;
+    }
+  });
+}
+
+/* ---------- the house's palette: its woods, floors, wall finishes and colours ---------- */
+const IX_LIME = [0xefe9dc, 0xebe0c4, 0xe4d2a4, 0xd9c79c, 0xcdd6c2, 0xbfcdd2, 0xdcc2b4, 0xe8d6b8, 0xc9b48a, 0xb9c4a4];
+const IX_RICHC = [0x7a2a2a, 0x2a4a3a, 0x2a3a5a, 0x8a6a3a, 0x5a3a4a, 0x3a5a5a, 0xa87a4a];
+const IX_CURT = [0x8a2a24, 0x2a4a6a, 0x4a6a3a, 0x9a7a3a, 0xd8ccb0, 0x6a3a5a, 0x3a6a6a, 0xb0603a];
+function ixPalette(P, t, H) {
+  const r = G.mkRng((t.s.seed * 17 + H.id * 104729 + 3) >>> 0), pf = P.pf, S = pf.sty, W = pf.wealth, pk = a => a[Math.floor(r() * a.length)];
+  const furn = S === 'east' ? pk(['japanese_cedar_planks', 'hinoki_planks', 'lacquered_cherry_wood', 'dark_wood']) : S === 'med' ? pk(['blue_painted_planks', 'distressed_painted_planks', 'green_rough_planks', 'kitchen_wood', 'oak_veneer_01', 'wood_cabinet_worn_long'])
+    : W > 0.65 ? pk(['black_walnut_veneer_01', 'lacquered_cherry_wood', 'dark_wood', 'oak_veneer_01']) : W < 0.3 ? pk(['medieval_wood', 'stained_pine', 'kitchen_wood', 'weathered_planks']) : pk(['oak_veneer_01', 'fine_grained_wood', 'dark_wood', 'stained_pine', 'medieval_wood', 'wood_table_001', 'kitchen_wood']);
+  const beam = S === 'east' ? 'japanese_cedar_planks' : pk(['dark_wood', 'medieval_wood', 'dark_wooden_planks']);
+  const woodFloors = W < 0.3 ? ['old_planks_02', 'weathered_planks', 'old_wooden_floor_03', 'dark_wooden_planks', 'brown_planks_07'] : W > 0.68 ? ['herringbone_parquet', 'diagonal_parquet', 'rectangular_parquet', 'wood_floor', 'wooden_floor_02', 'plank_flooring_04'] : ['wood_floor_worn', 'plank_flooring', 'plank_flooring_02', 'plank_flooring_03', 'old_wooden_floor_01', 'old_wooden_floor_02', 'wooden_floor_01', 'brown_planks_07'];
+  const stoneFloors = ['slate_floor', 'slate_floor_03', 'stone_tiles', 'monastery_stone_floor', 'square_brick_floor', 'worn_brick_floor', 'herringbone_brick_02', 'large_square_pattern_01', 'mixed_stone_tiles'];
+  const mainWood = pk(woodFloors), mainStone = pk(stoneFloors), upWood = r() < 0.6 ? mainWood : pk(woodFloors);
+  const pal = { r, furn, beam, fl: {}, fin: {}, ceil: {}, curtain: pk(IX_CURT), blanket: [pk(IX_CURT), pk(IX_CURT), pk(IX_CURT), pk(IX_CURT)] };
+  const lime = pk(IX_LIME), accent = pk(IX_RICHC);
+  const wst = H.wst;
+  for (const R of P.rooms) {
+    const T = R.type, wet = T === 'kitchen' || T === 'washroom' || T === 'pantry' || T === 'workshop';
+    // the floor
+    let fl;
+    if (S === 'east') fl = R.hub && R.l === 0 ? pk(['monastery_stone_floor', 'stone_tiles', 'slate_floor']) : T === 'washroom' ? 'hinoki_planks' : T === 'kitchen' || T === 'store' || T === 'pantry' ? 'japanese_cedar_planks' : 'tatami_mat';
+    else if (S === 'med') fl = W > 0.7 && (T === 'parlour' || T === 'dining' || T === 'master') ? pk(['marble_01', 'floor_tiles_06', 'interior_tiles']) : wet ? pk(['terracotta_floor_tiles', 'interior_tiles', 'mixed_stone_tiles']) : pk(['terracotta_floor_tiles', 'patterned_terracotta_tiling', 'terracotta_floor_tiles', 'interior_tiles']);
+    else if (S === 'desert') fl = pk(['patterned_terracotta_tiling', 'interior_tiles', 'mixed_stone_tiles', 'stone_tiles', 'terracotta_floor_tiles']);
+    else if (S === 'tropic') fl = 'weathered_planks';
+    else if (R.l === 0 && W < 0.2 && T !== 'master') fl = '*earth';
+    else if (R.l === 0 && (wet || (T === 'hall' && r() < 0.45))) fl = mainStone;
+    else if (W > 0.8 && R.l === 0 && T === 'parlour' && r() < 0.5) fl = pk(['marble_01', 'floor_tiles_06']);
+    else fl = R.l === 0 ? mainWood : upWood;
+    pal.fl[R.id] = fl;
+    // the walls: limewash in the colours of the earth, wainscot in better rooms, stencils, hangings, bare stone or brick where it's rough
+    let f = { lo: 0, up: 0, dado: 0, tu: lime, tl: lime, grime: clamp((1 - pf.tidy) * 0.75 + (T === 'kitchen' ? 0.18 : 0) + (W < 0.3 ? 0.12 : 0) - (W > 0.8 ? 0.15 : 0), 0, 0.9), cur: null };
+    const tint = r() < 0.55 ? lime : pk(IX_LIME);
+    if (S === 'east' || (S === 'north' && wst === 1 && r() < 0.75)) f = null;   // the native timber and plaster, or bare logs
+    else if (S === 'tropic') { f.lo = f.up = IX_WSLOT.bamboo_wall; f.tu = f.tl = 0xd8c8a0; }
+    else if (S === 'desert') { const c = pk([0xe8d8b8, 0xf0e8d8, 0xd8b890, 0xe0c8a0]); f.up = r() < 0.5 ? IX_WSLOT.patterned_clay_wall : IX_WSLOT.white_stucco; f.tu = c; if (r() < 0.5 || W > 0.6) { f.lo = IX_WSLOT.interior_tiles; f.dado = 1.1; f.tl = pk([0xffffff, 0xd8e8ff, 0xe8ffe8]); } else { f.lo = f.up; f.tl = c; } }
+    else if (S === 'med') { const c = pk([0xf4f0e8, 0xf0e4c8, 0xf0d8c0, 0xd8e4ec, 0xe8d8a8, 0xecd4cc]); f.up = IX_WSLOT.white_stucco; f.tu = c; if (wet || (W > 0.5 && r() < 0.5)) { f.lo = IX_WSLOT.interior_tiles; f.dado = T === 'washroom' ? 1.5 : 1.15; f.tl = pk([0xffffff, 0xd8e4ff, 0xfff0d8]); } else { f.lo = f.up; f.tl = c; } }
+    else if ((T === 'pantry' || T === 'store' || T === 'kitchen' || T === 'workshop') && (wst === 4 || wst === 5 || r() < 0.3)) { const b = wst === 5 ? IX_WSLOT[r() < 0.5 ? 'red_brick' : 'whitewashed_brick'] : IX_WSLOT[r() < 0.5 ? 'medieval_blocks_03' : 'old_stone_wall']; f.lo = f.up = b; f.tu = f.tl = 0xffffff; }
+    else if (W < 0.25 || pf.tidy < 0.2) { f.lo = f.up = r() < 0.6 ? IX_WSLOT.peeling_painted_wall : IX_WSLOT.plastered_wall; f.tu = f.tl = r() < 0.6 ? 0xffffff : tint; }
+    else {
+      f.up = r() < 0.5 ? IX_WSLOT.plastered_wall : IX_WSLOT.white_stucco; f.tu = tint; f.lo = f.up; f.tl = tint;
+      if (W > 0.4 && T !== 'kitchen' && r() < 0.6) { f.lo = r() < 0.5 ? IX_WSLOT.wooden_panels : IX_WSLOT.dark_paneled_wood; f.dado = 0.95 + r() * 0.35; f.tl = f.lo === IX_WSLOT.wooden_panels ? pk([0xffffff, 0xc8b8a0, 0x9aa8a0, 0xa0b0c0]) : 0xffffff; }
+      if (W > 0.55 && (T === 'hall' || T === 'parlour' || T === 'dining' || T === 'master' || T === 'solar') && r() < 0.35) { f.up = IX_WSLOT['*stencil']; f.tu = pk([0xf0e0c0, 0xe8d0b0, 0xd8e0d0, 0xf0d8c8]); }
+      if (W > 0.78 && (T === 'parlour' || T === 'master' || T === 'solar') && r() < 0.4) { f.up = IX_WSLOT.floral_jacquard; f.tu = accent; }
+      if (W > 0.5 && T === 'study' && r() < 0.6) { f.lo = f.up = IX_WSLOT.dark_paneled_wood; f.tu = f.tl = 0xffffff; f.dado = 0; }
+      if (wst === 4 && T === 'hall' && r() < 0.35) { f.lo = f.up = IX_WSLOT.medieval_blocks_03; f.tu = f.tl = 0xffffff; f.dado = 0; }
+      if (wst === 5 && r() < 0.25) { f.lo = f.up = IX_WSLOT.whitewashed_brick; f.tu = f.tl = 0xffffff; f.dado = 0; }
+    }
+    if (f && W > 0.3 && S !== 'tropic' && (T === 'hall' || T === 'parlour' || T === 'master' || T === 'bedroom' || T === 'kids' || T === 'dining' || T === 'solar' || T === 'study') && r() < 0.35 + W * 0.5) f.cur = r() < 0.7 ? pal.curtain : pk(IX_CURT);
+    pal.fin[R.id] = f;
+    // the ceiling: bare boards and joists, whitewash between the joists, or smooth plaster in a rich house; soot over a kitchen fire
+    pal.ceil[R.id] = S === 'east' ? 'east' : W > 0.75 && r() < 0.6 && !wet ? 'plaster' : r() < 0.45 ? 'limed' : 'boards';
+  }
+  return pal;
+}
+const ixFinMat = (f, lower) => f ? ixWallMat(lower ? f.lo : f.up, lower ? f.tl : f.tu) : null;
+
+/* ---------- small builders ---------- */
+const ixSolid = (C, q, l) => C.I.ixCol.push([q[0], q[1], q[2], q[3], l]);
+function ixFlame(C, g, x, y, z, s) {
+  // big fires are the real noise-driven fire; a candle is a single small flame sheet that turns to face you
+  if (s > 0.3) { const f = makeRealFire(s * 0.42, { smoke: false }); f.position.set(x, y, z); f.userData.noBake = true; g.add(f); (C.I.realFires = C.I.realFires || []).push(f); return f; }
+  const m = new THREE.Mesh(flameGeo, ixCandleMat()); m.scale.set(0.035 * s / 0.12, 0.085 * s / 0.12, 1); m.position.set(x, y - 0.005, z); m.userData.noBake = true; m.renderOrder = 6; g.add(m);
+  (C.I.candles = C.I.candles || []).push(m);
+  return m;
+}
+let ixCandleM = null;
+const ixCandleMat = () => ixCandleM || (ixCandleM = flameMat(0.37, 1.6));
+function ixCandle(C, g, x, y, z, h = 0.2, stick = true) {
+  if (stick && ixModel(C.I, g, 'wooden_candlestick', x, y, z, 0, { h: 0.2 })) y += 0.2;
+  else if (stick) { ixCyl(g, 0.04, 0.05, 0.03, x, y + 0.015, z, bronzeMat, 10); y += 0.03; }
+  ixCyl(g, 0.018, 0.02, h, x, y + h / 2, z, C.m.wax, 8);
+  ixFlame(C, g, x, y + h + 0.012, z, 0.12);
+  return y + h;
+}
+function ixLight(C, x, y, z) { C.I.lightSpots.push([x, y, z]); }
+// a model if there is one, else the fallback; either way it stands where it's told
+function ixM(C, g, name, x, y, z, rot, o, fb) { const m = ixModel(C.I, g, name, x, y, z, rot, o || {}); if (!m && fb) fb(); return m; }
+// fruit, vegetables and bread in a bowl or heaped on a board
+function ixFood(C, g, x, y, z, kind, n = 5) {
+  const r = C.r;
+  if (kind === 'bread') {
+    for (let i = 0; i < Math.max(1, Math.floor(n / 3)); i++) { const m = new THREE.Mesh(AGEO.sph, C.m.crust); m.scale.set(0.26, 0.11, 0.15); m.position.set(x + (i - 0.5) * 0.18, y + 0.045, z + (r() - 0.5) * 0.08); m.rotation.y = r(); g.add(m); }
+    return;
+  }
+  if (kind === 'cheese') { ixCyl(g, 0.15, 0.15, 0.09, x, y + 0.045, z, C.m.rind, 20); ixCyl(g, 0.1, 0.1, 0.06, x + 0.22, y + 0.03, z + 0.05, C.m.rind, 16); return; }
+  const set = kind === 'fruit' ? (C.pf.sty === 'med' || C.pf.sty === 'desert' ? ['food_pomegranate_01', 'lemon', 'food_apple_01', 'lemon'] : ['food_apple_01', 'food_apple_01', 'food_pears_asian_01']) : kind === 'veg' ? ['yellow_onion', 'sweet_potato', 'yellow_onion', 'food_ginger_01'] : ['food_apple_01'];
+  for (let i = 0; i < n; i++) {
+    const nm = set[Math.floor(r() * set.length)], a = i / n * 6.283 + r(), rr = i === 0 ? 0 : 0.06 + r() * 0.05;
+    const s = nm === 'food_ginger_01' ? { h: 0.06, rx: Math.PI / 2 } : nm === 'food_pears_asian_01' ? { w: 0.14 } : nm === 'sweet_potato' ? { h: 0.16, rz: Math.PI / 2 } : { h: nm === 'lemon' ? 0.075 : 0.085 };
+    if (!ixModel(C.I, g, nm, x + Math.cos(a) * rr, y + (i > 4 ? 0.06 : 0), z + Math.sin(a) * rr, r() * 6, s)) { const m = new THREE.Mesh(AGEO.sph, amat([0xb02a1a, 0x8ab030, 0xe0c030][i % 3])); m.scale.setScalar(0.08); m.position.set(x + Math.cos(a) * rr, y + 0.04, z + Math.sin(a) * rr); g.add(m); }
+  }
+}
+function ixBowl(C, g, x, y, z, fill) {
+  const m = ixModel(C.I, g, C.r() < 0.5 ? 'wooden_bowl_01' : 'wooden_bowl_02', x, y, z, C.r() * 6, { w: 0.28 });
+  if (!m) ixCyl(g, 0.14, 0.09, 0.07, x, y + 0.035, z, pbr('dark_wood'), 16);
+  if (fill) ixFood(C, g, x, y + 0.03, z, fill, 5);
+}
+// a plate, painted in the country's way
+function ixPlate(C, g, x, y, z, d = 0.24, dirty = false) {
+  const m = new THREE.Mesh(C.plateGeo, C.m.plate); m.scale.set(d, 1, d); m.position.set(x, y, z); g.add(m);
+  if (dirty) { const s = new THREE.Mesh(AGEO.sph, amat(0x6a4a2a)); s.scale.set(d * 0.4, 0.02, d * 0.3); s.position.set(x + 0.02, y + 0.012, z); g.add(s); }
+}
+// shelves filled with what a house keeps: crocks, jars, bowls, cheeses, loaves, books, candles
+function ixFillShelf(C, g, w, y, d, what) {
+  const r = C.r;
+  let x = -w / 2 + 0.08;
+  while (x < w / 2 - 0.12) {
+    const q = r(), pick = what === 'books' ? 'books' : what === 'pantry' ? ['jar', 'cheese', 'bread', 'jar', 'crock', 'basket', 'veg'][Math.floor(q * 7)] : what === 'kitchen' ? ['plates', 'jar', 'bowl', 'crock', 'jug', 'pot'][Math.floor(q * 6)] : ['jar', 'books', 'box', 'vase', 'candle', 'bowl'][Math.floor(q * 6)];
+    if (r() < (C.pf.tidy > 0.5 ? 0.12 : 0.28)) { x += 0.15; continue; }
+    let used = 0.2;
+    if (pick === 'books') { const n = 4 + Math.floor(r() * 8); used = n * 0.045; ixBooks(C, g, x + used / 2, y, 0, used, 0.2 + r() * 0.08, d * 0.8); }
+    else if (pick === 'jar') { const nm = ['ceramic_vase_03', 'ceramic_vase_04', 'brass_vase_04', 'antique_ceramic_vase_01', 'ceramic_vase_01'][Math.floor(r() * 5)]; const m = ixModel(C.I, g, nm, x + 0.08, y, (r() - 0.5) * 0.05, r() * 6, { h: 0.16 + r() * 0.12 }); used = m ? Math.max(0.12, m.userData.dims[0] + 0.04) : 0.14; if (!m) ixCyl(g, 0.06, 0.07, 0.18, x + 0.07, y + 0.09, 0, amat(0x9a6a44), 12); }
+    else if (pick === 'crock') { ixModel(C.I, g, 'ceramic_pot', x + 0.12, y, 0, r() * 6, { w: 0.22 }) || ixCyl(g, 0.1, 0.1, 0.18, x + 0.1, y + 0.09, 0, amat(0x8a6a4a), 14); used = 0.25; }
+    else if (pick === 'bowl') { ixBowl(C, g, x + 0.12, y, 0, r() < 0.4 ? 'fruit' : null); used = 0.26; }
+    else if (pick === 'plates') { for (let i = 0; i < 3; i++) { const p = new THREE.Mesh(C.plateGeo, C.m.plate); p.scale.set(0.24, 1, 0.24); p.rotation.x = -1.35; p.position.set(x + 0.08 + i * 0.13, y + 0.13, -d / 2 + 0.06); g.add(p); } used = 0.42; }
+    else if (pick === 'jug') { ixModel(C.I, g, C.pf.sty === 'med' ? 'jug_01' : 'brass_vase_02', x + 0.1, y, 0, r() * 6, { h: 0.22 }); used = 0.22; }
+    else if (pick === 'pot') { ixModel(C.I, g, r() < 0.5 ? 'brass_pot_01' : 'brass_pot_02', x + 0.14, y, 0, r() * 6, { w: 0.24 }); used = 0.28; }
+    else if (pick === 'cheese') { ixFood(C, g, x + 0.14, y, 0, 'cheese'); used = 0.4; }
+    else if (pick === 'bread') { ixFood(C, g, x + 0.14, y, 0, 'bread', 3); used = 0.3; }
+    else if (pick === 'veg') { ixFood(C, g, x + 0.1, y, 0, 'veg', 4); used = 0.22; }
+    else if (pick === 'basket') { ixModel(C.I, g, 'wicker_basket_02', x + 0.17, y, 0, r() * 0.4, { w: 0.3 }); used = 0.34; }
+    else if (pick === 'vase') { ixModel(C.I, g, ['brass_vase_01', 'ceramic_vase_02', 'brass_vase_03'][Math.floor(r() * 3)], x + 0.09, y, 0, r() * 6, { h: 0.22 }); used = 0.18; }
+    else if (pick === 'candle') { ixCandle(C, g, x + 0.06, y, 0, 0.14); used = 0.14; }
+    else if (pick === 'box') { ixBox(g, 0.2, 0.1, 0.14, x + 0.1, y + 0.05, 0, C.m.furn); used = 0.24; }
+    x += used + 0.03;
+  }
+}
+// books: spines out, leaning when the row is short
+function ixBooks(C, g, x, y, z, len, h, d) {
+  const key = 'books' + r2(len) + r2(h);
+  let m = IX.mats.get(key);
+  if (!m) { const t = ixSpineTex().clone(); t.needsUpdate = true; t.repeat.set(len / 0.9, 1); t.offset.set(Math.random(), 0); m = new THREE.MeshStandardMaterial({ map: t, roughness: 0.75 }); IX.mats.set(key, m); }
+  const b = new THREE.Mesh(new THREE.BoxGeometry(len, h, d), [C.m.pages, C.m.pages, C.m.pages, C.m.pages, m, C.m.pages]);
+  b.position.set(x, y + h / 2, z); g.add(b);
+  return b;
+}
+// a garment on a peg: a cut-out cloth with folds, painted with its weave, seams and trim
+function ixGarmentTex(kind, col, seed) {
+  return ixCanvas('gar' + kind + col + '_' + seed, 128, 256, (g, w, h, r) => {
+    const c = new THREE.Color(col), rgb = k => `rgb(${Math.min(255, c.r * 255 * k) | 0},${Math.min(255, c.g * 255 * k) | 0},${Math.min(255, c.b * 255 * k) | 0})`;
+    g.clearRect(0, 0, w, h);
+    g.beginPath();
+    if (kind === 'cloak') { g.moveTo(w * 0.42, 4); g.lineTo(w * 0.58, 4); g.quadraticCurveTo(w * 0.95, h * 0.3, w * 0.98, h - 2); g.lineTo(w * 0.02, h - 2); g.quadraticCurveTo(w * 0.05, h * 0.3, w * 0.42, 4); }
+    else if (kind === 'dress') { g.moveTo(w * 0.36, 4); g.lineTo(w * 0.64, 4); g.lineTo(w * 0.78, h * 0.12); g.lineTo(w * 0.7, h * 0.3); g.lineTo(w * 0.94, h - 2); g.lineTo(w * 0.06, h - 2); g.lineTo(w * 0.3, h * 0.3); g.lineTo(w * 0.22, h * 0.12); }
+    else { g.moveTo(w * 0.34, 4); g.lineTo(w * 0.66, 4); g.lineTo(w * 0.98, h * 0.1); g.lineTo(w * 0.9, h * 0.34); g.lineTo(w * 0.78, h * 0.3); g.lineTo(w * 0.8, h * 0.62); g.lineTo(w * 0.2, h * 0.62); g.lineTo(w * 0.22, h * 0.3); g.lineTo(w * 0.1, h * 0.34); g.lineTo(w * 0.02, h * 0.1); }
+    g.closePath(); g.save(); g.clip();
+    const gr = g.createLinearGradient(0, 0, w, 0); for (let i = 0; i <= 8; i++) gr.addColorStop(i / 8, rgb(i % 2 ? 0.78 : 1.05)); g.fillStyle = gr; g.fillRect(0, 0, w, h);
+    for (let i = 0; i < 2500; i++) { g.fillStyle = `rgba(${r() < 0.5 ? '0,0,0' : '255,255,255'},${r() * 0.08})`; g.fillRect(r() * w, r() * h, 2, 1); }
+    g.fillStyle = rgb(0.55); g.fillRect(0, h - (kind === 'tunic' ? h * 0.4 : 8), w, 5);
+    if (kind === 'cloak') { g.fillStyle = rgb(0.6); g.beginPath(); g.ellipse(w / 2, 14, 18, 12, 0, 0, 6.3); g.fill(); }
+    if (kind === 'dress' && seed % 2) { g.fillStyle = 'rgba(240,232,215,0.9)'; g.fillRect(w * 0.3, h * 0.28, w * 0.4, h * 0.6); }
+    g.restore();
+  }, { clamp: true });
+}
+function ixGarment(C, g, x, y, z, kind, col) {
+  const len = kind === 'cloak' ? 1.2 : kind === 'dress' ? 1.15 : 0.8, wid = kind === 'tunic' ? 0.62 : 0.55;
+  const geo = new THREE.PlaneGeometry(wid, len, 6, 10), p = geo.attributes.position;
+  for (let i = 0; i < p.count; i++) { const px = p.getX(i), py = p.getY(i); p.setZ(i, Math.sin(px * 22 + py * 2) * 0.018 * (0.5 - py / len) + 0.04 * Math.cos(px * 5)); }
+  geo.computeVertexNormals();
+  const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: ixGarmentTex(kind, col, Math.floor(C.r() * 4)), alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.95 }));
+  m.position.set(x, y - len / 2 + 0.02, z + 0.05); g.add(m);
+  return m;
+}
+
+/* ---------- the furniture itself ---------- */
+const IX_FLAT = new Set(['rug', 'rugK', 'cushion', 'benchLoose', 'pegs', 'towel', 'chair', 'chairRich', 'painting', 'tapestry', 'mirror', 'icon', 'sampler', 'print', 'platesW', 'pans', 'scroll', 'fan', 'hanging', 'lamp', 'antlers', 'shield', 'weapons', 'cross', 'irori', 'lowtable', 'traytable']);
+// a blanket laid over a mattress and falling over its sides; rumpled in an untidy house
+function ixBlanketGeo(w, L, drop, mess, seed) {
+  const W2 = w + drop * 2, g = new THREE.PlaneGeometry(W2, L, 14, 12), p = g.attributes.position, uv = g.attributes.uv, r = G.mkRng(seed);
+  const bumps = Array.from({ length: 5 }, () => [(r() - 0.5) * w, (r() - 0.5) * L, 0.1 + r() * 0.2]);
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), y = p.getY(i), ax = Math.abs(x);
+    let h = ax > w / 2 ? -(ax - w / 2) * 1.6 : 0;
+    if (mess > 0) for (const [bx, by, br] of bumps) h += mess * 0.07 * Math.exp(-((x - bx) ** 2 + (y - by) ** 2) / (br * br));
+    h += Math.sin(x * 9 + y * 3) * 0.006;
+    p.setXYZ(i, x, y, h);
+    uv.setXY(i, uv.getX(i) * W2, uv.getY(i) * L);
+  }
+  g.rotateX(-Math.PI / 2); g.computeVertexNormals();
+  return g;
+}
+function ixBed(C, ig, it) {
+  const w = it.w, L = it.d, fm = C.m.furn, tidy = C.pf.tidy, r = C.r, k = it.k, low = k === 'futon' || k === 'mat' || k === 'pallet';
+  const blanketName = C.pf.sty === 'east' ? (r() < 0.5 ? 'quatrefoil_jacquard_fabric' : 'floral_jacquard') : it.rich ? (r() < 0.5 ? 'velour_velvet' : 'floral_jacquard') : C.pf.wealth < 0.3 ? (r() < 0.5 ? 'caban' : 'hessian_230') : ['caban', 'poly_wool_herringbone', 'gingham_check', 'quatrefoil_jacquard_fabric', 'rough_linen'][Math.floor(r() * 5)];
+  const bcol = C.pal.blanket[(it.room + it.x * 10) & 3] || 0x8a2a24, blanket = pbr(blanketName, { tint: blanketName === 'gingham_check' || blanketName === 'rough_linen' ? 0xffffff : bcol, side: THREE.DoubleSide });
+  const mess = tidy < 0.45 ? 1 : tidy < 0.7 ? 0.35 : 0;
+  if (low) {
+    const th = k === 'futon' ? 0.1 : k === 'pallet' ? 0.2 : 0.03;
+    ixBox(ig, w - 0.05, th, L - 0.05, 0, th / 2, 0, k === 'pallet' ? pbr('hessian_230', { tint: 0xd8c080 }) : k === 'mat' ? pbr('hessian_230', { tint: 0xb09a6a }) : C.m.linen);
+    const bl = new THREE.Mesh(ixBlanketGeo(w - 0.1, L * 0.7, 0.04, mess, it.x * 1000 | 0), blanket); bl.position.set(0, th + 0.02, L * 0.14); bl.rotation.y = mess ? (r() - 0.5) * 0.25 : 0; ig.add(bl);
+    const pl = new THREE.Mesh(AGEO.sph, C.m.linen); pl.scale.set(k === 'futon' ? 0.4 : 0.55, 0.1, 0.25); pl.position.set(mess ? 0.1 : 0, th + 0.05, -L / 2 + 0.22); ig.add(pl);
+    return;
+  }
+  const rich = it.rich && k !== 'bedK';
+  if (rich && k === 'bedD' && ixModel(C.I, ig, 'GothicBed_01', 0, 0, 0, 0, { d: L })) return;
+  const post = 0.08, hh = k === 'bedK' ? 0.85 : rich ? 2.1 : 1.1;
+  for (const [sx, sz, h] of [[-1, -1, hh], [1, -1, hh], [-1, 1, rich ? hh : 0.7], [1, 1, rich ? hh : 0.7]]) ixBox(ig, post, h, post, sx * (w / 2 - post / 2), h / 2, sz * (L / 2 - post / 2), fm);
+  ixBox(ig, w - post, 0.62, 0.04, 0, 0.62, -L / 2 + 0.04, fm);                                // headboard
+  ixBox(ig, w - post, 0.28, 0.04, 0, 0.42, L / 2 - 0.04, fm);                                 // footboard
+  for (const sx of [-1, 1]) ixBox(ig, 0.05, 0.16, L - post, sx * (w / 2 - 0.03), 0.3, 0, fm);   // side rails
+  ixBox(ig, w - 0.12, 0.2, L - 0.14, 0, 0.44, 0.01, C.m.ticking);                                // mattress
+  ixBox(ig, w - 0.1, 0.012, L - 0.16, 0, 0.545, 0.01, C.m.linen);                                // sheet
+  const bl = new THREE.Mesh(ixBlanketGeo(w - 0.12, L * 0.68, 0.16, mess, (it.x * 997 + it.z * 31) | 0), blanket);
+  bl.position.set(mess ? (r() - 0.5) * 0.12 : 0, 0.56, L * 0.15 + (mess ? r() * 0.1 : 0)); bl.rotation.y = mess ? (r() - 0.5) * 0.2 : 0; ig.add(bl);
+  if (!mess) ixBox(ig, w - 0.1, 0.03, 0.25, 0, 0.565, -L * 0.18, C.m.linen);                   // the sheet turned down over the blanket
+  const nP = w > 1.3 ? 2 : 1;
+  for (let i = 0; i < nP; i++) { const pl = new THREE.Mesh(AGEO.sph, C.m.linen); pl.scale.set(w / nP * 0.8, 0.13, 0.34); pl.position.set(nP > 1 ? (i - 0.5) * w * 0.48 : 0, 0.6, -L / 2 + 0.28); pl.rotation.y = mess ? (r() - 0.5) * 0.5 : 0; ig.add(pl); }
+  if (rich) {
+    // a four-poster: tester, valance and bed curtains tied back at the posts
+    const cm = pbr('velour_velvet', { tint: C.pal.curtain, side: THREE.DoubleSide });
+    ixBox(ig, w + 0.1, 0.05, L + 0.1, 0, hh, 0, fm);
+    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { const c = ixCyl(ig, 0.05, 0.09, hh - 0.35, sx * (w / 2 + 0.03), (hh - 0.35) / 2 + 0.3, sz * (L / 2 + 0.03), cm, 10); void c; ixCyl(ig, 0.055, 0.055, 0.05, sx * (w / 2 + 0.03), 1.05, sz * (L / 2 + 0.03), goldMat, 10); }
+    for (const [ww, dd, x, z] of [[w + 0.14, 0.02, 0, -L / 2 - 0.05], [w + 0.14, 0.02, 0, L / 2 + 0.05], [0.02, L + 0.14, -w / 2 - 0.05, 0], [0.02, L + 0.14, w / 2 + 0.05, 0]]) ixBox(ig, ww, 0.26, dd, x, hh - 0.14, z, cm);
+    ixBox(ig, w - 0.1, 1.2, 0.02, 0, hh - 0.75, -L / 2 + 0.06, cm);
+  }
+  // a chest at the foot, a chamber pot beneath
+  if (k !== 'bedK' && (rich || r() < 0.5)) ixChestAt(C, ig, 0, L / 2 + 0.28, Math.min(0.9, w * 0.75), 0.42, 0.45, rich);
+  ixCyl(ig, 0.12, 0.1, 0.13, w / 2 - 0.25, 0.065, -0.2, C.m.glaze, 14);
+}
+function ixChestAt(C, g, x, z, w, d, h, rich, rot = 0) {
+  const cg = new THREE.Group(); cg.position.set(x, 0, z); cg.rotation.y = rot; g.add(cg);
+  if (rich && ixModel(C.I, cg, 'treasure_chest', 0, 0, 0, 0, { w })) return cg;
+  if (!rich && C.r() < 0.4 && ixModel(C.I, cg, 'vintage_wooden_drawer_01', 0, 0, 0, 0, { fit: [w, h + 0.2, d] })) return cg;
+  const m = C.m.furn;
+  ixBox(cg, w, h - 0.08, d, 0, (h - 0.08) / 2 + 0.04, 0, m);
+  ixBox(cg, w + 0.03, 0.08, d + 0.03, 0, h - 0.02, 0, m);
+  for (const sx of [-1, 1]) ixBox(cg, 0.05, h + 0.01, d + 0.04, sx * (w / 2 - 0.12), h / 2, 0, ironMat);
+  ixBox(cg, 0.08, 0.1, 0.02, 0, h - 0.12, d / 2 + 0.01, ironMat);
+  for (const sx of [-1, 1]) ixBox(cg, 0.06, 0.04, d * 0.9, sx * (w / 2 - 0.05), 0.02, 0, m);
+  return cg;
+}
+// a cupboard or wardrobe with panelled doors, a cornice and iron handles
+function ixCase(C, g, w, d, h, o = {}) {
+  const m = o.mat || C.m.furn, dark = C.m.furnDark;
+  ixBox(g, w, h - 0.12, d, 0, (h - 0.12) / 2 + 0.08, 0, m);
+  ixBox(g, w + 0.06, 0.07, d + 0.05, 0, h - 0.02, 0.01, dark);
+  ixBox(g, w + 0.02, 0.08, d + 0.02, 0, 0.04, 0, dark);
+  const nd = o.doors || (w > 0.9 ? 2 : 1), dh = h - 0.3;
+  for (let i = 0; i < nd; i++) {
+    const dx = -w / 2 + (i + 0.5) * w / nd, dw = w / nd - 0.06;
+    ixBox(g, dw, dh, 0.02, dx, 0.12 + dh / 2, d / 2 + 0.01, m);
+    for (const py of o.drawers ? [0.12 + dh * 0.25, 0.12 + dh * 0.75] : [0.12 + dh * 0.28, 0.12 + dh * 0.72]) ixBox(g, dw - 0.14, dh * (o.drawers ? 0.4 : 0.36), 0.01, dx, py, d / 2 + 0.025, dark);
+    ixBox(g, 0.025, 0.12, 0.03, dx + (nd === 2 ? (i ? -1 : 1) * (dw / 2 - 0.07) : dw / 2 - 0.08), 0.12 + dh * 0.5, d / 2 + 0.04, ironMat);
+  }
+}
+function ixHearth(C, ig, it) {
+  const w = it.w, d = it.d, big = it.k === 'bigHearth', topY = C.P.ceil[it.l] - (it.l === 0 ? 0 : 0);
+  const st = C.m.hearthStone, soot = C.m.soot, fb = big ? w - 0.7 : w - 0.8, fh = big ? 1.25 : 0.95, fd = d - 0.2;
+  // jambs, lintel and the breast up to the ceiling
+  for (const sx of [-1, 1]) ixBox(ig, (w - fb) / 2, fh, d, sx * (fb / 2 + (w - fb) / 4), fh / 2 + 0.05, 0, st);
+  const oak = C.pf.wealth > 0.5 || C.r() < 0.5;
+  if (oak) ixBox(ig, w + 0.04, 0.22, d + 0.04, 0, fh + 0.16, 0.02, C.m.beam); else ixBox(ig, w, 0.22, d, 0, fh + 0.16, 0, st);
+  ixBox(ig, w - 0.2, topY - fh - 0.27, d - 0.15, 0, (topY + fh + 0.27) / 2, -0.07, st);
+  ixBox(ig, fb, fh, 0.05, 0, fh / 2 + 0.05, -d / 2 + 0.03, soot);
+  ixBox(ig, fb, 0.05, fd, 0, fh + 0.02, 0, soot);
+  // the mantel shelf and what stands on it
+  const my = fh + 0.29;
+  ixBox(ig, w + 0.18, 0.06, 0.26, 0, my, d / 2 - 0.02, C.m.furnDark);
+  const r = C.r;
+  const shelfItems = [() => ixCandle(C, ig, -w / 2 + 0.15, my + 0.03, d / 2 - 0.05, 0.18), () => ixCandle(C, ig, w / 2 - 0.15, my + 0.03, d / 2 - 0.05, 0.18),
+    () => { const p = new THREE.Mesh(C.plateGeo, C.m.plate); p.scale.set(0.28, 1, 0.28); p.rotation.x = 1.3; p.position.set(-0.3, my + 0.17, d / 2 - 0.1); ig.add(p); },
+    () => ixModel(C.I, ig, C.pf.sty === 'med' ? 'jug_01' : 'brass_vase_02', 0.25, my + 0.03, d / 2 - 0.06, r() * 6, { h: 0.22 }),
+    () => ixModel(C.I, ig, 'carved_wooden_elephant', 0.05, my + 0.03, d / 2 - 0.06, 0.3, { h: 0.1 })];
+  for (let i = 0; i < shelfItems.length; i++) if (i < 2 || r() < 0.6) shelfItems[i]();
+  // hearthstone, firedogs, logs, the fire and its light
+  ixBox(ig, w + 0.3, 0.04, 0.6, 0, 0.02, d / 2 + 0.28, C.m.slate);
+  for (const sx of [-0.3, 0.3]) { ixBox(ig, 0.04, 0.3, 0.04, sx * fb, 0.2, d / 2 - 0.15, ironMat); ixBox(ig, 0.04, 0.04, 0.5, sx * fb, 0.07, 0, ironMat); }
+  for (let i = 0; i < 3; i++) ixCyl(ig, 0.06, 0.07, fb * 0.7, (i - 1) * 0.1, 0.14 + (i === 1 ? 0.1 : 0), -0.05 + (i - 1) * 0.08, C.m.log, 8, 0, 0.3 * (i - 1), Math.PI / 2);
+  const em = new THREE.Mesh(AGEO.sph, glowMat(0xff5a1a)); em.scale.set(fb * 0.6, 0.06, 0.4); em.position.set(0, 0.1, 0); ig.add(em);
+  ixFlame(C, ig, 0, 0.12, 0.05, big ? 1.3 : 1.05);
+  const [lx, lz] = [it.x + Math.sin(it.rot) * (d / 2 + 0.5), it.z + Math.cos(it.rot) * (d / 2 + 0.5)];
+  ixLight(C, lx, it.l * IX_FY + 0.9, lz);
+  // a crane with the pot on it in a working hearth
+  if (it.room === C.P.rooms.find(R => R.type === 'kitchen' || (R.hub && R.l === 0 && !C.P.rooms.some(q => q.type === 'kitchen'))).id || big) {
+    ixBox(ig, 0.03, fh * 0.8, 0.03, -fb / 2 + 0.1, fh * 0.45, 0, ironMat); ixBox(ig, fb * 0.45, 0.03, 0.03, -fb / 2 + 0.1 + fb * 0.22, fh * 0.82, 0, ironMat);
+    ixBox(ig, 0.012, 0.3, 0.012, -0.1, fh * 0.66, 0, ironMat);
+    const pot = new THREE.Mesh(AGEO.sph, ironMat); pot.scale.set(0.34, 0.3, 0.34); pot.position.set(-0.1, fh * 0.46, 0); ig.add(pot);
+    if (big) { ixBox(ig, fb * 0.9, 0.02, 0.02, 0, 0.55, 0.15, ironMat); for (const sx of [-1, 1]) ixBox(ig, 0.03, 0.55, 0.03, sx * fb * 0.45, 0.28, 0.15, ironMat); }
+  }
+}
+function ixTableTop(C, g, it, w, d, y) {
+  if (C.pf.empty) return;
+  const r = C.r, tidy = C.pf.tidy, rich = C.pf.wealth > 0.62, S = C.pf.sty;
+  if (rich && S !== 'east') { ixBox(g, w + 0.16, 0.006, d + 0.16, 0, y + 0.003, 0, C.m.linen); for (const sz of [-1, 1]) ixBox(g, w + 0.16, 0.24, 0.006, 0, y - 0.12, sz * (d / 2 + 0.08), C.m.linen); }
+  else if (tidy > 0.55 && r() < 0.5) ixBox(g, w * 0.55, 0.004, d * 0.4, 0, y + 0.002, 0, pbr('rough_linen', { tint: 0xf0e8d8 }));
+  const y2 = y + 0.008;
+  // the centre: a candelabra in a rich house, a candle in a plain one, flowers where someone cares
+  if (rich && ixModel(C.I, g, 'brass_candleholders', 0, y2, 0, 0, { w: Math.min(0.8, w * 0.45) })) ixLight(C, it.x, it.l * IX_FY + 1.3, it.z);
+  else ixCandle(C, g, 0.05, y2, 0.02, 0.16);
+  if (tidy > 0.72 || (rich && r() < 0.6)) ixFlowers(C, g, -w * 0.25, y2, 0);
+  else ixBowl(C, g, -w * 0.25, y2, 0.05, 'fruit');
+  ixFood(C, g, w * 0.28, y2 + 0.03, 0, 'bread', 3);
+  ixBox(g, 0.4, 0.025, 0.25, w * 0.28, y2 + 0.012, 0, C.m.furnDark);
+  if (r() < 0.6) ixModel(C.I, g, S === 'med' ? 'jug_01' : r() < 0.5 ? 'brass_vase_02' : 'ceramic_vase_04', w * 0.12, y2, -d * 0.2, r() * 6, { h: 0.24 });
+  // places laid, or the leavings of the last meal
+  const n = Math.min(8, it.n || 4), per = Math.max(1, Math.ceil(n / 2));
+  for (let i = 0; i < n; i++) {
+    const side = i % 2 ? 1 : -1, px = -w / 2 + (Math.floor(i / 2) + 0.5) * w / per;
+    if (tidy < 0.35 && r() < 0.4) continue;
+    ixPlate(C, g, px, y2 + 0.01, side * (d / 2 - 0.16), 0.22, tidy < 0.45 && r() < 0.6);
+    if (rich) ixModel(C.I, g, 'brass_goblets', px + 0.14, y2, side * (d / 2 - 0.3), r() * 6, { h: 0.12 }) || ixCyl(g, 0.035, 0.03, 0.1, px + 0.14, y2 + 0.05, side * (d / 2 - 0.3), goldMat, 10);
+    else { const mug = ixCyl(g, 0.045, 0.04, 0.1, px + 0.15, y2 + 0.05, side * (d / 2 - 0.28), C.m.glaze, 12); if (tidy < 0.4 && r() < 0.3) { mug.rotation.z = Math.PI / 2; mug.position.y = y2 + 0.04; } }
+  }
+  if (tidy < 0.35) { for (let i = 0; i < 12; i++) { const c = new THREE.Mesh(AGEO.sph, C.m.crumb); c.scale.setScalar(0.012 + r() * 0.015); c.position.set((r() - 0.5) * w * 0.8, y2 + 0.005, (r() - 0.5) * d * 0.8); g.add(c); } }
+}
+function ixFlowers(C, g, x, y, z) {
+  const r = C.r, vase = ixModel(C.I, g, ['ceramic_vase_01', 'ceramic_vase_04', 'brass_vase_03', 'antique_ceramic_vase_01'][Math.floor(r() * 4)], x, y, z, r() * 6, { h: 0.24 });
+  if (!vase) ixCyl(g, 0.06, 0.05, 0.2, x, y + 0.1, z, C.m.glaze, 12);
+  const cols = [0xe03a4a, 0xf0d040, 0xf4f0ea, 0x9a5ad0, 0xf08a3a, 0xe87aa8], c0 = cols[Math.floor(r() * cols.length)];
+  for (let i = 0; i < 9; i++) {
+    const a = r() * 6.28, tilt = 0.15 + r() * 0.35, len = 0.2 + r() * 0.14, sx = Math.sin(tilt) * Math.cos(a) * len, sz = Math.sin(tilt) * Math.sin(a) * len, top = y + 0.2 + Math.cos(tilt) * len;
+    const st = ixCyl(g, 0.004, 0.004, len, x + sx / 2, y + 0.2 + Math.cos(tilt) * len / 2, z + sz / 2, C.m.stem, 4); st.rotation.set(Math.sin(a) * tilt, 0, -Math.cos(a) * tilt);
+    const b = new THREE.Mesh(AGEO.sph, amat(r() < 0.7 ? c0 : cols[Math.floor(r() * cols.length)])); b.scale.set(0.05, 0.035, 0.05); b.position.set(x + sx, top, z + sz); g.add(b);
+    if (i % 3 === 0) { const lf = new THREE.Mesh(AGEO.sph, C.m.leaf); lf.scale.set(0.05, 0.01, 0.022); lf.position.set(x + sx * 0.6, y + 0.2 + Math.cos(tilt) * len * 0.6, z + sz * 0.6); lf.rotation.y = a; g.add(lf); }
+  }
+}
+function ixSeat(C, ig, it, rich) {
+  const S = C.pf.sty, r = C.r, poor = C.pf.wealth < 0.3;
+  const choice = S === 'east' ? ['chinese_stool', { h: 0.5 }] : S === 'med' ? [rich ? 'painted_wooden_chair_02' : 'painted_wooden_chair_01', { h: 0.98 }] : rich ? ['WoodenChair_01', { h: 1.35 }] : poor ? [r() < 0.5 ? 'wooden_stool_01' : 'painted_wooden_stool', { h: 0.48 }] : S === 'north' ? ['folding_wooden_stool', { h: 0.46 }] : ['gallinera_chair', { h: 0.98 }];
+  if (ixModel(C.I, ig, choice[0], 0, 0, 0, 0, choice[1])) return;
+  const m = C.m.furn;
+  ixBox(ig, 0.42, 0.04, 0.42, 0, 0.45, 0, m);
+  for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) ixBox(ig, 0.04, 0.45, 0.04, sx * 0.18, 0.225, sz * 0.18, m);
+  if (!poor) { ixBox(ig, 0.42, 0.5, 0.04, 0, 0.72, -0.19, m); }
+}
+function ixTable(C, ig, it) {
+  const w = it.w, d = it.d, m = C.m.furn, rich = it.k === 'tableRich';
+  if (rich && C.pf.sty === 'med' && ixModel(C.I, ig, 'painted_wooden_table', 0, 0, 0, 0, { fit: [w, 0.78, d] })) { ixTableTop(C, ig, it, w, d, 0.78); return; }
+  ixBox(ig, w, 0.06, d, 0, 0.75, 0, m);
+  if (w > 1.6 && !rich) {
+    // a trestle table: two trestles and a stretcher
+    for (const sx of [-1, 1]) { ixBox(ig, 0.1, 0.66, 0.12, sx * (w / 2 - 0.3), 0.39, 0, m); ixBox(ig, 0.12, 0.08, d * 0.85, sx * (w / 2 - 0.3), 0.04, 0, m); ixBox(ig, 0.1, 0.06, d * 0.8, sx * (w / 2 - 0.3), 0.69, 0, m); }
+    ixBox(ig, w - 0.6, 0.07, 0.07, 0, 0.3, 0, m);
+  } else {
+    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+      const lx = sx * (w / 2 - 0.08), lz = sz * (d / 2 - 0.08);
+      if (rich) { ixCyl(ig, 0.035, 0.045, 0.72, lx, 0.36, lz, m, 10); for (const yy of [0.2, 0.45, 0.62]) ixCyl(ig, 0.055, 0.055, 0.04, lx, yy, lz, m, 10); }
+      else ixBox(ig, 0.07, 0.72, 0.07, lx, 0.36, lz, m);
+    }
+    ixBox(ig, w - 0.2, 0.08, 0.03, 0, 0.66, d / 2 - 0.08, m); ixBox(ig, w - 0.2, 0.08, 0.03, 0, 0.66, -d / 2 + 0.08, m);
+    if (!rich) ixBox(ig, w - 0.2, 0.05, 0.05, 0, 0.15, 0, m);
+  }
+  ixTableTop(C, ig, it, w, d, 0.78);
+}
+
+function ixArt(grp, seed) {
+  const A = IX.art ? IX.art.filter(a => a[1] === grp) : [];
+  return A.length ? A[seed % A.length] : null;
+}
+const ixArtMats = new Map();
+function ixArtMat(a) {
+  let m = ixArtMats.get(a[0]);
+  if (!m) { const t = IX_TL.load('interiors/art/' + a[0]); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; m = new THREE.MeshStandardMaterial({ map: t, roughness: 0.62, normalMap: ixTex('rough_linen', 'n'), normalScale: new THREE.Vector2(0.25, 0.25) }); ixArtMats.set(a[0], m); }
+  return m;
+}
+// a picture in its frame: gilt for the rich, dark wood for the rest, fitted to the painting's own shape
+function ixFramed(C, g, a, maxW, maxH, gilt, frameW = 0.07) {
+  const asp = a ? a[2] / a[3] : 0.8;
+  let w = maxW, h = maxW / asp;
+  if (h > maxH) { h = maxH; w = maxH * asp; }
+  ixQuad(g, w, h, 0, 0, 0.035, 0, a ? ixArtMat(a) : paintingMat(C.r));
+  const fm = gilt ? goldMat : C.m.furnDark, fw = frameW;
+  for (const [x, y, ww, hh] of [[0, h / 2 + fw / 2, w + fw * 2, fw], [0, -h / 2 - fw / 2, w + fw * 2, fw], [-w / 2 - fw / 2, 0, fw, h], [w / 2 + fw / 2, 0, fw, h]]) ixBox(g, ww, hh, 0.05, x, y, 0.025, fm);
+  if (gilt) for (const [x, y, ww, hh] of [[0, h / 2 + 0.008, w, 0.016], [0, -h / 2 - 0.008, w, 0.016], [-w / 2 - 0.008, 0, 0.016, h], [w / 2 + 0.008, 0, 0.016, h]]) ixBox(g, ww, hh, 0.06, x, y, 0.03, C.m.furnDark);
+  return [w, h];
+}
+function ixWallArt(C, ig, it) {
+  const r = C.r, k = it.k, rich = C.pf.wealth > 0.6, seed = it.seed || 0;
+  if (k === 'painting') ixFramed(C, ig, ixArt('west', seed), it.w, it.hh, rich, rich ? 0.09 : 0.06);
+  else if (k === 'print') ixFramed(C, ig, ixArt('west', seed + 7), it.w, it.hh, false, 0.03);
+  else if (k === 'icon') { const A = IX.art ? IX.art.filter(a => a[1] === 'west' && /Virgin|Madonna|Saint|Flight|Moses|Child/.test(a[4])) : []; ixFramed(C, ig, A.length ? A[seed % A.length] : ixArt('west', seed), it.w, it.hh, true, 0.04); const sh = ixBox(ig, 0.3, 0.03, 0.14, 0, -it.hh / 2 - 0.12, 0.07, C.m.furnDark); void sh; ixCandle(C, ig, 0, -it.hh / 2 - 0.105, 0.08, 0.12, false); }
+  else if (k === 'sampler') { ixQuad(ig, it.w, it.hh, 0, 0, 0.03, 0, new THREE.MeshStandardMaterial({ map: ixSamplerTex(seed % 17), roughness: 0.95, normalMap: ixTex('rough_linen', 'n') })); for (const [x, y, ww, hh] of [[0, it.hh / 2 + 0.02, it.w + 0.08, 0.04], [0, -it.hh / 2 - 0.02, it.w + 0.08, 0.04], [-it.w / 2 - 0.02, 0, 0.04, it.hh], [it.w / 2 + 0.02, 0, 0.04, it.hh]]) ixBox(ig, ww, hh, 0.04, x, y, 0.02, C.m.furnDark); }
+  else if (k === 'tapestry' || k === 'hanging') {
+    const mat = k === 'hanging' ? new THREE.MeshStandardMaterial({ map: ixRugTex(seed % 97, 'kilim'), roughness: 1, side: THREE.DoubleSide, normalMap: ixTex('hessian_230', 'n') }) : new THREE.MeshStandardMaterial({ map: r() < 0.5 && IX.art ? ixArtMat(ixArt('west', seed + 3)).map : ixTapestryTex(seed % 13), roughness: 1, side: THREE.DoubleSide, normalMap: ixTex('hessian_230', 'n'), normalScale: new THREE.Vector2(0.6, 0.6) });
+    const geo = new THREE.PlaneGeometry(it.w, it.hh, 12, 4), p = geo.attributes.position; for (let i = 0; i < p.count; i++) p.setZ(i, 0.03 + Math.sin(p.getX(i) * 14) * 0.015); geo.computeVertexNormals();
+    const tm = new THREE.Mesh(geo, mat); tm.position.z = 0.02; ig.add(tm);
+    ixCyl(ig, 0.018, 0.018, it.w + 0.2, 0, it.hh / 2 + 0.03, 0.05, C.m.furnDark, 8, 0, 0, Math.PI / 2);
+  }
+  else if (k === 'mirror') { if (!ixModel(C.I, ig, 'ornate_mirror_01', 0, -0.4, 0, 0, { h: 0.8 })) { ixBox(ig, it.w, it.hh, 0.03, 0, 0, 0.015, goldMat); ixQuad(ig, it.w - 0.1, it.hh - 0.1, 0, 0, 0.032, 0, new THREE.MeshStandardMaterial({ color: 0xcfd6dc, metalness: 1, roughness: 0.05 })); } }
+  else if (k === 'platesW' || k === 'pans') {
+    ixBox(ig, it.w, 0.05, 0.1, 0, -0.18, 0.05, C.m.furnDark);
+    if (k === 'platesW') { ixBox(ig, it.w, 0.02, 0.02, 0, -0.08, 0.1, C.m.furnDark); for (let i = 0; i < 4; i++) { const p = new THREE.Mesh(C.plateGeo, C.m.plate); p.scale.set(0.24, 1, 0.24); p.rotation.x = Math.PI / 2 - 0.2; p.position.set(-it.w / 2 + 0.14 + i * (it.w - 0.28) / 3, -0.03, 0.06); ig.add(p); } }
+    else { ixBox(ig, it.w, 0.02, 0.02, 0, 0.2, 0.06, ironMat); for (let i = 0; i < 4; i++) { const x = -it.w / 2 + 0.15 + i * (it.w - 0.3) / 3; ixBox(ig, 0.01, 0.08, 0.01, x, 0.16, 0.06, ironMat); ixModel(C.I, ig, ['brass_pan_01', 'brass_pot_02', 'wooden_spoon', 'brass_pan_01'][i], x, -0.15, 0.08, 0, { rx: -Math.PI / 2 + 0.1, h: 0.05 }); } }
+  }
+  else if (k === 'scroll') {
+    const a = ixArt('east', seed); const asp = a ? a[2] / a[3] : 0.35; let w = Math.min(it.w, it.hh * asp), h = w / asp; if (h > it.hh) { h = it.hh; w = h * asp; }
+    ixQuad(ig, w, h, 0, 0, 0.02, 0, a ? ixArtMat(a) : paintingMat(r));
+    for (const y of [h / 2, -h / 2]) { ixCyl(ig, 0.014, 0.014, w + 0.06, 0, y, 0.03, C.m.furnDark, 8, 0, 0, Math.PI / 2); }
+    ixBox(ig, 0.003, 0.12, 0.003, 0, h / 2 + 0.07, 0.03, amat(0x3a2a1a));
+  }
+  else if (k === 'fan') { const t = ixCanvas('fan' + seed % 7, 256, 128, (gg, w, h, rr) => { gg.fillStyle = ['#e8dcc0', '#d8e0e8', '#f0d8d0'][seed % 3]; gg.beginPath(); gg.arc(w / 2, h, h, Math.PI, 0); gg.fill(); gg.strokeStyle = '#2a3a6a'; gg.lineWidth = 3; for (let i = 0; i < 5; i++) { gg.beginPath(); gg.arc(w / 2 + (rr() - 0.5) * 80, h * 0.7, 20 + i * 8, Math.PI, 0); gg.stroke(); } gg.fillStyle = '#b02a1a'; gg.beginPath(); gg.arc(w * 0.7, h * 0.4, 14, 0, 6.3); gg.fill(); gg.strokeStyle = 'rgba(80,50,30,0.5)'; gg.lineWidth = 1; for (let a = 0; a <= 16; a++) { const an = Math.PI + a / 16 * Math.PI; gg.beginPath(); gg.moveTo(w / 2, h); gg.lineTo(w / 2 + Math.cos(an) * h, h + Math.sin(an) * h); gg.stroke(); } }, { clamp: true }); const f = new THREE.Mesh(new THREE.CircleGeometry(0.34, 24, 0, Math.PI), new THREE.MeshStandardMaterial({ map: t, roughness: 0.9, side: THREE.DoubleSide })); f.position.set(0, -0.17, 0.02); ig.add(f); }
+  else if (k === 'lamp') { ixBox(ig, 0.04, 0.04, 0.3, 0, 0.1, 0.15, bronzeMat); if (!ixModel(C.I, ig, 'brass_diya_lantern', 0, -0.25, 0.28, 0, { h: 0.34 })) { const l = new THREE.Mesh(AGEO.sph, glowMat(0xffb060)); l.scale.setScalar(0.14); l.position.set(0, -0.1, 0.28); ig.add(l); } ixLight(C, it.x + Math.sin(it.rot) * 0.4, it.l * IX_FY + it.y, it.z + Math.cos(it.rot) * 0.4); }
+  else if (k === 'antlers') {
+    const pl = new THREE.Mesh(AGEO.sph, C.m.furnDark); pl.scale.set(0.3, 0.38, 0.05); pl.position.z = 0.02; ig.add(pl);
+    for (const sd of [-1, 1]) { let x = 0, y = 0.05, a = sd * 0.5; const bone = amat(0xd8c8a8); for (let i = 0; i < 4; i++) { const L = 0.22 - i * 0.03, nx = x + Math.sin(a) * L, ny = y + Math.cos(a) * L; const c = ixCyl(ig, 0.012, 0.018, L, (x + nx) / 2, (y + ny) / 2, 0.08, bone, 6); c.rotation.z = -a; if (i > 0) { const t2 = ixCyl(ig, 0.008, 0.012, 0.12, nx - sd * 0.05, ny + 0.05, 0.1, bone, 6); t2.rotation.z = sd * 0.6; } x = nx; y = ny; a += sd * 0.35; } }
+  }
+  else if (k === 'shield') { if (!ixModel(C.I, ig, 'kite_shield', 0, -0.45, 0.02, 0, { h: 0.9 })) { const s = new THREE.Mesh(AGEO.cyl, amat(0x7a2a24)); s.scale.set(0.7, 0.05, 0.7); s.rotation.x = Math.PI / 2; s.position.z = 0.04; ig.add(s); } }
+  else if (k === 'weapons') { ixBox(ig, 0.5, 0.6, 0.03, 0, 0, 0.015, C.m.furnDark); ixModel(C.I, ig, 'antique_estoc', 0, -0.62, 0.06, 0, { h: 1.1, rz: 0.6 }); ixModel(C.I, ig, 'ornate_medieval_mace', 0, -0.4, 0.06, 0, { h: 0.7, rz: -0.6 }); }
+  else if (k === 'cross') { ixBox(ig, 0.05, it.hh, 0.03, 0, 0, 0.015, C.m.furnDark); ixBox(ig, it.w * 0.8, 0.05, 0.03, 0, it.hh * 0.18, 0.015, C.m.furnDark); }
+}
+function ixBuildItem(C, it) {
+  const k = it.k, g = C.g, r = C.r, S = C.pf.sty, y0 = it.l * IX_FY + (it.l === 0 ? 0.108 : 0);
+  const ig = new THREE.Group(); ig.position.set(it.x, it.wallArt ? it.l * IX_FY + it.y : y0, it.z); ig.rotation.y = it.rot || 0; g.add(ig);
+  const w = it.w, d = it.d, h = it.h, fm = C.m.furn;
+  if (it.wallArt) { ixWallArt(C, ig, it); return; }
+  if (!IX_FLAT.has(k) && it.q) ixSolid(C, it.q, it.l);
+  switch (k) {
+    case 'bedS': case 'bedD': case 'bedK': case 'pallet': case 'futon': case 'mat': ixBed(C, ig, it); break;
+    case 'wardrobe': {
+      const done = C.pf.wealth > 0.7 && S !== 'med' ? ixModel(C.I, ig, 'GothicCabinet_01', 0, 0, 0, 0, { fit: [w, h, d] }) : S === 'med' ? ixModel(C.I, ig, 'painted_wooden_cabinet_02', 0, 0, 0, 0, { fit: [w, h, d] }) : null;
+      if (!done) ixCase(C, ig, w, d, h, { doors: 2 });
+      break;
+    }
+    case 'cupboard': if (!ixModel(C.I, ig, 'painted_wooden_cabinet', 0, 0, 0, 0, { fit: [w, h, d] })) ixCase(C, ig, w, d, h, { doors: 2 }); ixTopClutter(C, ig, w, d, h); break;
+    case 'commode': if (!ixModel(C.I, ig, S === 'med' ? 'painted_wooden_cabinet' : C.pf.wealth > 0.7 ? 'GothicCommode_01' : 'vintage_wooden_drawer_01', 0, 0, 0, 0, { fit: [w, h, d] })) ixCase(C, ig, w, d, h, { doors: 2, drawers: true }); ixTopClutter(C, ig, w, d, (ig.children[ig.children.length - 1] && ig.children[ig.children.length - 1].userData.dims ? ig.children[ig.children.length - 1].userData.dims[1] : h)); break;
+    case 'chest': ixChestAt(C, ig, 0, 0, w, d, h, C.pf.wealth > 0.55); if (C.pf.tidy > 0.6 && r() < 0.5) { for (let i = 0; i < 3; i++) ixBox(ig, w * 0.5, 0.05, d * 0.6, 0, h + 0.03 + i * 0.05, 0, i % 2 ? C.m.linen : pbr('caban', { tint: C.pal.blanket[i] })); } break;
+    case 'dresser': {
+      if (!ixModel(C.I, ig, 'vintage_cabinet_01', 0, 0, 0, 0, { fit: [w, h, d] })) {
+        ixCase(C, ig, w, d, 0.9, { doors: 2 });
+        ixBox(ig, w, h - 0.9, 0.04, 0, 0.9 + (h - 0.9) / 2, -d / 2 + 0.05, fm); for (const sx of [-1, 1]) ixBox(ig, 0.04, h - 0.9, 0.3, sx * (w / 2 - 0.02), 0.9 + (h - 0.9) / 2, -d / 2 + 0.17, fm);
+        for (const yy of [1.3, 1.7, h - 0.04]) { ixBox(ig, w, 0.03, 0.3, 0, yy, -d / 2 + 0.17, fm); if (yy < h - 0.1) for (let i = 0; i < Math.floor(w / 0.3); i++) { const p = new THREE.Mesh(C.plateGeo, C.m.plate); p.scale.set(0.26, 1, 0.26); p.rotation.x = Math.PI / 2 - 0.25; p.position.set(-w / 2 + 0.18 + i * 0.3, yy + 0.14, -d / 2 + 0.1); ig.add(p); } }
+        for (let i = 0; i < 5; i++) { ixCyl(ig, 0.04, 0.035, 0.09, -w / 2 + 0.2 + i * (w - 0.4) / 4, 1.2, -d / 2 + 0.3, C.m.glaze, 10); }
+      }
+      break;
+    }
+    case 'shelf': {
+      const n = Math.max(3, Math.floor(h / 0.42)), room = C.P.rooms[it.room];
+      for (const sx of [-1, 1]) ixBox(ig, 0.04, h, d, sx * (w / 2 - 0.02), h / 2, 0, fm);
+      ixBox(ig, w, h, 0.02, 0, h / 2, -d / 2 + 0.01, C.m.furnDark);
+      for (let i = 0; i < n; i++) { const yy = 0.08 + i * (h - 0.1) / (n - 1); ixBox(ig, w - 0.04, 0.03, d, 0, yy, 0, fm); if (i < n - 1) ixFillShelf(C, ig, w - 0.1, yy + 0.015, d, room.type === 'pantry' || room.type === 'store' ? 'pantry' : room.type === 'kitchen' || room.type === 'hall' ? 'kitchen' : 'misc'); }
+      break;
+    }
+    case 'books': {
+      const n = 5;
+      for (const sx of [-1, 1]) ixBox(ig, 0.04, h, d, sx * (w / 2 - 0.02), h / 2, 0, fm);
+      ixBox(ig, w, h, 0.02, 0, h / 2, -d / 2 + 0.01, C.m.furnDark); ixBox(ig, w + 0.06, 0.06, d + 0.04, 0, h + 0.03, 0.01, C.m.furnDark);
+      for (let i = 0; i < n; i++) { const yy = 0.08 + i * (h - 0.12) / (n - 1); ixBox(ig, w - 0.04, 0.03, d, 0, yy, 0, fm); if (i < n - 1) { let x = -w / 2 + 0.05; while (x < w / 2 - 0.2) { const L = Math.min(w / 2 - 0.05 - x, 0.25 + r() * 0.45); ixBooks(C, ig, x + L / 2, yy + 0.015, 0.02, L, 0.24 + r() * 0.1, d * 0.75); x += L + (r() < 0.3 ? 0.12 : 0.01); if (r() < 0.15) { ixModel(C.I, ig, ['carved_wooden_elephant', 'brass_vase_04', 'horse_statue_01'][Math.floor(r() * 3)], x + 0.06, yy + 0.015, 0, 0, { h: 0.14 }); x += 0.14; } } } }
+      break;
+    }
+    case 'wash': {
+      for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) ixBox(ig, 0.04, 0.8, 0.04, sx * (w / 2 - 0.03), 0.4, sz * (d / 2 - 0.03), fm);
+      ixBox(ig, w, 0.04, d, 0, 0.8, 0, fm); ixBox(ig, w - 0.06, 0.03, d - 0.06, 0, 0.25, 0, fm);
+      const b = new THREE.Mesh(new THREE.SphereGeometry(0.5, 20, 10, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), C.m.glaze); b.scale.set(0.42, 0.24, 0.42); b.position.set(0, 0.94, 0); b.material.side = THREE.DoubleSide; ig.add(b);
+      const wa = new THREE.Mesh(new THREE.CircleGeometry(0.17, 20), C.m.water); wa.rotation.x = -Math.PI / 2; wa.position.set(0, 0.88, 0); ig.add(wa);
+      ixModel(C.I, ig, 'jug_01', w / 2 - 0.12, 0.82, d / 2 - 0.12, -0.6, { h: 0.2 });
+      ixBox(ig, 0.07, 0.03, 0.05, -w / 2 + 0.1, 0.835, d / 2 - 0.1, amat(0xe8e0c8));
+      ixBox(ig, 0.3, 0.4, 0.01, -w / 2 - 0.01, 0.6, 0, pbr('waffle_pique_cotton', { tint: 0xf4f0e8 }), Math.PI / 2);
+      if (C.pf.wealth > 0.55 && S !== 'east') ixModel(C.I, ig, 'ornate_mirror_01', 0, 1.1, -d / 2 + 0.03, 0, { h: 0.7 });
+      break;
+    }
+    case 'tub': case 'bath': case 'ofuro': {
+      if (k === 'ofuro') { const hm = pbr('hinoki_planks'); for (const [x, z, ww, dd] of [[0, -d / 2 + 0.03, w, 0.06], [0, d / 2 - 0.03, w, 0.06], [-w / 2 + 0.03, 0, 0.06, d], [w / 2 - 0.03, 0, 0.06, d]]) ixBox(ig, ww, h, dd, x, h / 2, z, hm); ixBox(ig, w - 0.1, 0.04, d - 0.1, 0, 0.05, 0, hm); const wa = ixBox(ig, w - 0.12, 0.01, d - 0.12, 0, h - 0.12, 0, C.m.water); void wa; ixModel(C.I, ig, 'wooden_bucket_01', w / 2 + 0.25, 0, d / 2 - 0.2, 0, { h: 0.3 }); break; }
+      if (k === 'bath') {
+        const prof = []; for (let i = 0; i <= 10; i++) { const t2 = i / 10; prof.push(new THREE.Vector2(0.5 * Math.sin(t2 * Math.PI / 2) ** 0.5, t2 * 0.62)); } prof.push(new THREE.Vector2(0.52, 0.62), new THREE.Vector2(0.52, 0.58));
+        const bt = new THREE.Mesh(new THREE.LatheGeometry(prof, 28), copperMat); bt.material.side = THREE.DoubleSide; bt.scale.set(w * 0.95, 1, d * 0.95); ig.add(bt);
+        ixBox(ig, w * 0.8, 0.005, d * 0.72, 0, 0.46, 0, C.m.water);
+        const lin = new THREE.Mesh(ixBlanketGeo(0.4, 0.5, 0.2, 0.3, 5), C.m.linen); lin.position.set(w * 0.42, 0.62, 0); lin.rotation.z = -0.2; ig.add(lin);
+      } else {
+        if (!ixModel(C.I, ig, 'wooden_bucket_02', 0, 0, 0, 0, { w: w * 0.95 })) ixCyl(ig, w / 2, w / 2 - 0.05, 0.55, 0, 0.28, 0, pbr('medieval_wood'), 20);
+        const wa = new THREE.Mesh(new THREE.CircleGeometry(w * 0.42, 24), C.m.water); wa.rotation.x = -Math.PI / 2; wa.position.y = 0.4; ig.add(wa);
+      }
+      ixBox(ig, 0.35, 0.3, 0.02, -w / 2 - 0.05, h - 0.1, 0.1, pbr('waffle_pique_cotton', { tint: 0xf0ece0 }), 0, 0, 0.15);
+      break;
+    }
+    case 'towel': { ixBox(ig, w, 0.03, 0.03, 0, 1.25, 0.06, fm); for (const sx of [-1, 1]) ixBox(ig, 0.03, 0.03, 0.08, sx * w / 2, 1.25, 0.03, fm); for (let i = 0; i < 2; i++) ixBox(ig, 0.28, 0.55, 0.012, (i - 0.5) * 0.34, 1.0, 0.07, pbr('waffle_pique_cotton', { tint: [0xf4f0e8, 0xd8e0e8][i] })); break; }
+    case 'closestool': ixBox(ig, w, 0.46, d, 0, 0.23, 0, fm); ixBox(ig, w + 0.03, 0.04, d + 0.03, 0, 0.48, 0, C.m.furnDark); ixBox(ig, w, 0.3, 0.04, 0, 0.62, -d / 2 + 0.02, fm); break;
+    case 'hearth': case 'bigHearth': ixHearth(C, ig, it); break;
+    case 'brazier': { for (let i = 0; i < 3; i++) { const a = i / 3 * 6.283; const l = ixBox(ig, 0.03, 0.6, 0.03, Math.cos(a) * 0.2, 0.3, Math.sin(a) * 0.2, bronzeMat); l.rotation.set(Math.sin(a) * 0.2, 0, -Math.cos(a) * 0.2); } const bw = new THREE.Mesh(new THREE.SphereGeometry(0.3, 18, 8, 0, 6.3, Math.PI / 2, Math.PI / 2), bronzeMat); bw.material.side = THREE.DoubleSide; bw.position.y = 0.72; ig.add(bw); const em = new THREE.Mesh(AGEO.sph, glowMat(0xff6a20)); em.scale.set(0.45, 0.08, 0.45); em.position.y = 0.66; ig.add(em); ixFlame(C, ig, 0, 0.68, 0, 0.5); ixLight(C, it.x, it.l * IX_FY + 1.1, it.z); break; }
+    case 'firepit': {
+      const n = w > 1.8 ? 14 : 10;
+      for (let i = 0; i < n; i++) { const a = i / n * 6.283, sx = Math.cos(a) * w / 2 * 0.9, sz = Math.sin(a) * d / 2 * 0.9; const s = new THREE.Mesh(AGEO.sph, C.m.hearthStone); s.scale.set(0.3, 0.2, 0.26); s.position.set(sx, 0.08, sz); s.rotation.y = a; ig.add(s); }
+      const ash = new THREE.Mesh(new THREE.CircleGeometry(0.5, 20), amat(0x3a3430)); ash.rotation.x = -Math.PI / 2; ash.scale.set(w * 0.8, d * 0.8, 1); ash.position.y = 0.02; ig.add(ash);
+      for (let i = 0; i < 4; i++) ixCyl(ig, 0.05, 0.06, 0.6, (i - 1.5) * 0.1, 0.1, 0, C.m.log, 8, 0, i * 0.8, Math.PI / 2 - 0.25);
+      ixFlame(C, ig, 0, 0.08, 0, 1.0); ixLight(C, it.x, it.l * IX_FY + 1.0, it.z);
+      break;
+    }
+    case 'irori': {
+      ixBox(ig, w, 0.06, 0.1, 0, 0.03, -d / 2 + 0.05, C.m.furnDark); ixBox(ig, w, 0.06, 0.1, 0, 0.03, d / 2 - 0.05, C.m.furnDark); ixBox(ig, 0.1, 0.06, d, -w / 2 + 0.05, 0.03, 0, C.m.furnDark); ixBox(ig, 0.1, 0.06, d, w / 2 - 0.05, 0.03, 0, C.m.furnDark);
+      ixBox(ig, w - 0.2, 0.02, d - 0.2, 0, 0.0, 0, amat(0x6a625a));
+      const em = new THREE.Mesh(AGEO.sph, glowMat(0xff5a1a)); em.scale.set(0.3, 0.04, 0.3); em.position.y = 0.02; ig.add(em); ixFlame(C, ig, 0, 0.02, 0, 0.55);
+      const top = C.P.ceil[it.l]; ixCyl(ig, 0.015, 0.015, top - 0.7, 0, 0.7 + (top - 0.7) / 2, 0, C.m.furnDark, 6);
+      const ket = new THREE.Mesh(AGEO.sph, ironMat); ket.scale.set(0.26, 0.2, 0.26); ket.position.y = 0.55; ig.add(ket);
+      ixLight(C, it.x, it.l * IX_FY + 0.8, it.z);
+      break;
+    }
+    case 'kamado': {
+      const pm = pbr('white_stucco', { tint: 0xd8cfc0 });
+      ixBox(ig, w, h, d, 0, h / 2, 0, pm); ixBox(ig, w + 0.04, 0.05, d + 0.04, 0, h + 0.01, 0, C.m.furnDark);
+      for (const sx of [-0.35, 0.35]) { const pot = new THREE.Mesh(AGEO.sph, ironMat); pot.scale.set(0.46, 0.3, 0.46); pot.position.set(sx * w, h + 0.05, 0); ig.add(pot); ixCyl(ig, 0.24, 0.24, 0.03, sx * w, h + 0.2, 0, C.m.furn, 16); const mo = ixBox(ig, 0.26, 0.2, 0.02, sx * w, 0.2, d / 2 + 0.005, glowMat(0xff7a2a)); void mo; }
+      ixFlame(C, ig, -0.35 * w, 0.12, d / 2 - 0.1, 0.4); ixLight(C, it.x + Math.sin(it.rot) * 0.8, it.l * IX_FY + 0.6, it.z + Math.cos(it.rot) * 0.8);
+      ixModel(C.I, ig, 'wooden_bucket_01', w / 2 + 0.25, 0, 0, 0, { h: 0.35 });
+      break;
+    }
+    case 'tannur': {
+      const prof = []; for (let i = 0; i <= 12; i++) { const t2 = i / 12; prof.push(new THREE.Vector2(0.45 * Math.cos(t2 * 1.2) + 0.02, t2 * 0.85)); }
+      const tn = new THREE.Mesh(new THREE.LatheGeometry(prof, 24), pbr('patterned_clay_wall', { tint: 0xc89a70 })); ig.add(tn);
+      const gl = new THREE.Mesh(new THREE.CircleGeometry(0.16, 16), glowMat(0xff6a20)); gl.rotation.x = -Math.PI / 2; gl.position.y = 0.84; ig.add(gl);
+      ixLight(C, it.x, it.l * IX_FY + 1.0, it.z);
+      for (let i = 0; i < 4; i++) ixCyl(ig, 0.14, 0.14, 0.012, 0.6, 0.012 + i * 0.013, 0.2, C.m.crust, 16);
+      break;
+    }
+    case 'worktable': case 'worktableT': {
+      if (k === 'worktableT') { ixBox(ig, w, 0.82, d, 0, 0.41, 0, pbr('white_stucco', { tint: 0xe8e0d0 })); ixBox(ig, w + 0.04, 0.04, d + 0.04, 0, 0.84, 0, pbr('interior_tiles')); }
+      else { ixBox(ig, w, 0.08, d, 0, 0.82, 0, pbr('kitchen_wood')); for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) ixBox(ig, 0.08, 0.78, 0.08, sx * (w / 2 - 0.06), 0.39, sz * (d / 2 - 0.06), fm); ixBox(ig, w - 0.1, 0.03, d - 0.1, 0, 0.18, 0, fm); ixModel(C.I, ig, 'ceramic_pot', -w * 0.25, 0.195, 0, 0, { w: 0.34 }); ixModel(C.I, ig, 'wicker_basket_01', w * 0.2, 0.195, 0, 0, { w: 0.36 }); }
+      const y = 0.86;
+      if (!ixModel(C.I, ig, 'wooden_cutting_board', -w * 0.15, y, 0.05, 0.1, { w: 0.42 })) ixBox(ig, 0.42, 0.03, 0.26, -w * 0.15, y + 0.015, 0.05, C.m.furnDark);
+      ixFood(C, ig, -w * 0.15, y + 0.03, 0.05, r() < 0.5 ? 'bread' : 'veg', 3);
+      ixBox(ig, 0.18, 0.004, 0.025, -w * 0.15 + 0.2, y + 0.05, 0.12, steelMat, 0.4);
+      ixBowl(C, ig, w * 0.28, y, -0.08, 'veg');
+      if (r() < 0.6) ixFood(C, ig, w * 0.05, y, -0.15, 'cheese');
+      if (r() < 0.6) ixModel(C.I, ig, r() < 0.5 ? 'brass_pot_02' : 'ceramic_vase_02', w * 0.4, y, 0.12, r() * 6, { w: 0.22 });
+      if (C.pf.tidy < 0.4) for (let i = 0; i < 16; i++) { const c = new THREE.Mesh(AGEO.sph, C.m.flour); c.scale.set(0.05, 0.004, 0.05); c.position.set((r() - 0.5) * w * 0.7, y + 0.002, (r() - 0.5) * d * 0.6); ig.add(c); }
+      ixModel(C.I, ig, 'wooden_spoon', w * 0.1, y + 0.01, 0.2, 1.2, { w: 0.08 });
+      break;
+    }
+    case 'barrel': if (!ixModel(C.I, ig, 'wine_barrel_01', 0, 0, 0, r() * 6, { fit: [w, h, d] })) { const b = new THREE.Mesh(BLD_GEO.barrel, pbr('medieval_wood')); b.scale.set(0.6, 0.85, 0.6); ig.add(b); } break;
+    case 'sacks': { const hm = pbr('hessian_230', { tint: 0xd8c8a0 }); for (let i = 0; i < 3; i++) { const s = new THREE.Mesh(AGEO.sph, hm); s.scale.set(0.42, 0.55 - i * 0.08, 0.36); s.position.set((i - 1) * 0.34, 0.26 - i * 0.02, (r() - 0.5) * 0.1); s.rotation.set(0, r(), (r() - 0.5) * 0.2); ig.add(s); ixCyl(ig, 0.05, 0.08, 0.1, (i - 1) * 0.34, 0.54 - i * 0.05, 0, hm, 8); } if (C.pf.tidy < 0.45) { const sp = new THREE.Mesh(AGEO.sph, C.m.grain); sp.scale.set(0.35, 0.03, 0.22); sp.position.set(0.3, 0.01, 0.3); ig.add(sp); } break; }
+    case 'crates': { if (!ixModel(C.I, ig, 'wooden_crate_01', 0, 0, 0, 0, { w: w * 0.9 })) ixBox(ig, w * 0.9, 0.4, d * 0.8, 0, 0.2, 0, pbr('weathered_planks')); if (r() < 0.6) ixModel(C.I, ig, 'wooden_crate_02', 0, 0.36, 0, Math.PI / 2 + (r() - 0.5) * 0.3, { w: d * 0.8 }); else ixFood(C, ig, 0, 0.32, 0, r() < 0.5 ? 'fruit' : 'veg', 8); break; }
+    case 'bucket': if (!ixModel(C.I, ig, 'wooden_bucket_01', 0, 0, 0, r() * 6, { h: 0.42 })) ixCyl(ig, 0.18, 0.15, 0.35, 0, 0.18, 0, pbr('medieval_wood'), 14); if (C.pf.sty !== 'east' && r() < 0.5) { const bm = ixModel(C.I, ig, 'wooden_broom', 0.3, 0, -0.05, 0, { h: 1.4, rz: 0.15 }); void bm; } break;
+    case 'armchair': {
+      const nm = S === 'east' ? ['chinese_armchair', { h: 1.15 }] : S === 'med' ? ['painted_wooden_chair_02', { h: 1.0 }] : C.pf.wealth > 0.7 ? ['ArmChair_01', { h: 1.05 }] : r() < 0.5 ? ['Rockingchair_01', { h: 1.0 }] : ['gallinera_chair', { h: 1.0 }];
+      if (!ixModel(C.I, ig, nm[0], 0, 0, 0, 0, nm[1])) { ixBox(ig, w * 0.8, 0.45, d * 0.8, 0, 0.225, 0, fm); ixBox(ig, w * 0.8, 0.6, 0.08, 0, 0.75, -d * 0.36, fm); }
+      if (r() < 0.6) { const th = new THREE.Mesh(ixBlanketGeo(0.45, 0.5, 0.12, 0.4, it.x * 99 | 0), pbr(r() < 0.5 ? 'caban' : 'poly_wool_herringbone', { tint: C.pal.blanket[1], side: THREE.DoubleSide })); th.position.set(0, 0.95, -d * 0.3); th.rotation.x = -1.2; ig.add(th); }
+      // a stool by it with a candle and a cup, or a book
+      const sx = w / 2 + 0.25;
+      ixBox(ig, 0.34, 0.03, 0.34, sx, 0.5, 0.05, fm); for (const [a, b] of [[-1, -1], [1, 1], [-1, 1], [1, -1]]) ixBox(ig, 0.03, 0.5, 0.03, sx + a * 0.13, 0.25, 0.05 + b * 0.13, fm);
+      if (C.pf.bookish) ixBooks(C, ig, sx, 0.515, 0.05, 0.05, 0.22, 0.16).rotation.z = Math.PI / 2; else ixCyl(ig, 0.045, 0.04, 0.1, sx, 0.565, 0.05, C.m.glaze, 12);
+      break;
+    }
+    case 'settle': case 'sofa': case 'bench': {
+      const nm = k === 'sofa' ? 'painted_wooden_sofa' : k === 'settle' ? 'painted_wooden_bench' : null;
+      if (!(nm && ixModel(C.I, ig, nm, 0, 0, 0, 0, { fit: [w, h + 0.3, d] }))) { ixBox(ig, w, 0.06, d, 0, 0.44, 0, fm); for (const sx of [-1, 1]) ixBox(ig, 0.06, 0.44, d * 0.9, sx * (w / 2 - 0.08), 0.22, 0, fm); if (k !== 'bench') ixBox(ig, w, 0.55, 0.05, 0, 0.75, -d / 2 + 0.03, fm); }
+      if (k !== 'bench') for (let i = 0; i < Math.floor(w / 0.55); i++) if (r() < 0.7) { const cu = ixBox(ig, 0.42, 0.12, 0.38, -w / 2 + 0.35 + i * 0.55, 0.53, 0.02, pbr(r() < 0.5 ? 'velour_velvet' : 'floral_jacquard', { tint: C.pal.blanket[i & 3] })); cu.rotation.set(-0.15, (r() - 0.5) * 0.3, 0); }
+      break;
+    }
+    case 'benchLoose': ixBox(ig, w, 0.05, d, 0, 0.44, 0, fm); for (const sx of [-1, 1]) ixBox(ig, 0.05, 0.42, d * 0.8, sx * (w / 2 - 0.12), 0.21, 0, fm); break;
+    case 'chair': case 'chairRich': ixSeat(C, ig, it, k === 'chairRich' || C.pf.wealth > 0.7); break;
+    case 'desk': {
+      ixBox(ig, w, 0.05, d, 0, 0.76, 0, fm); for (const sx of [-1, 1]) ixBox(ig, 0.05, 0.74, d - 0.06, sx * (w / 2 - 0.04), 0.37, 0, fm); ixBox(ig, w - 0.1, 0.3, 0.02, 0, 0.6, -d / 2 + 0.04, fm);
+      ixBox(ig, w * 0.5, 0.06, 0.28, 0.1, 0.82, -0.1, fm).rotation.x = 0.35;
+      for (let i = 0; i < 4; i++) ixBox(ig, 0.2, 0.002, 0.28, -0.2 + r() * 0.2, 0.785 + i * 0.002, r() * 0.1, C.m.paper, r() - 0.5);
+      ixCyl(ig, 0.025, 0.03, 0.05, w / 2 - 0.15, 0.81, 0.1, amat(0x101010), 10);
+      ixCyl(ig, 0.002, 0.004, 0.25, w / 2 - 0.15, 0.9, 0.1, amat(0xf0ece0), 4).rotation.z = 0.4;
+      ixBooks(C, ig, -w / 2 + 0.2, 0.785, -0.15, 0.25, 0.24, 0.18);
+      ixCandle(C, ig, w / 2 - 0.25, 0.785, -0.2, 0.18);
+      ixLight(C, it.x, it.l * IX_FY + 1.2, it.z);
+      break;
+    }
+    case 'wheel': if (!ixModel(C.I, ig, 'spinning_wheel_01', 0, 0, 0, Math.PI / 2, { h: 1.0 })) { ixCyl(ig, 0.3, 0.3, 0.04, 0, 0.6, 0, C.m.furn, 20, 0, 0, Math.PI / 2); } ixModel(C.I, ig, 'wicker_basket_01', 0.45, 0, 0.3, 0.4, { w: 0.34 }); { const fl = new THREE.Mesh(AGEO.sph, amat(0xece6da)); fl.scale.set(0.25, 0.1, 0.2); fl.position.set(0.45, 0.1, 0.3); ig.add(fl); } break;
+    case 'plant': {
+      const pick = ['potted_plant_01', 'potted_plant_02', 'potted_plant_04'][Math.floor(r() * 3)];
+      let y = 0;
+      if (pick === 'potted_plant_04') { y = 0.615; ixBox(ig, 0.4, 0.03, 0.4, 0, 0.6, 0, fm); for (const [a2, b2] of [[-1, -1], [1, 1], [-1, 1], [1, -1]]) ixBox(ig, 0.03, 0.6, 0.03, a2 * 0.16, 0.3, b2 * 0.16, fm); }
+      if (!ixModel(C.I, ig, pick, 0, y, 0, r() * 6, { h: pick === 'potted_plant_04' ? 0.35 : pick === 'potted_plant_01' ? 1.15 : 0.8 })) ixModel(C.I, ig, 'planter_pot_clay', 0, y, 0, 0, { w: 0.35 });
+      break;
+    }
+    case 'trade': tradeCorner(C.I, ig, C.pf.boss ? C.pf.boss.res.job : '', 0, 0, 0, 0, r); break;
+    case 'tokonoma': {
+      ixBox(ig, w, 0.14, d, 0, 0.07, 0, C.m.furnDark); ixBox(ig, w - 0.06, 0.02, d - 0.06, 0, 0.15, 0, pbr('tatami_mat'));
+      ixCyl(ig, 0.07, 0.08, C.P.ceil[it.l], w / 2 + 0.05, C.P.ceil[it.l] / 2, d / 2 - 0.05, pbr('japanese_cedar_planks', { tint: 0x8a6a4a }), 10);
+      ixBox(ig, w + 0.1, 0.12, 0.08, 0, 2.05, d / 2, C.m.furnDark);
+      const sg = new THREE.Group(); sg.position.set(0, 1.25, -d / 2 + 0.03); ig.add(sg); ixWallArt(C, sg, { k: 'scroll', w: 0.6, hh: 1.5, seed: (it.x * 13 + it.z * 7) & 1023 });
+      ixModel(C.I, ig, r() < 0.5 ? 'antique_ceramic_vase_01' : 'brass_vase_01', w * 0.25, 0.16, 0, r() * 6, { h: 0.34 });
+      for (let i = 0; i < 5; i++) { const br = ixCyl(ig, 0.006, 0.008, 0.45, w * 0.25 + (i - 2) * 0.04, 0.6, (r() - 0.5) * 0.1, C.m.stem, 4); br.rotation.z = (i - 2) * 0.3; const bl = new THREE.Mesh(AGEO.sph, amat(r() < 0.5 ? 0xf0b8c8 : 0xffffff)); bl.scale.setScalar(0.05); bl.position.set(w * 0.25 + (i - 2) * 0.12, 0.8, 0); ig.add(bl); }
+      break;
+    }
+    case 'screen': if (!ixModel(C.I, ig, 'chinese_screen_panels', 0, 0, 0, 0, { fit: [w, h, d + 0.1] })) ixBox(ig, w, h, 0.04, 0, h / 2, 0, pbr('lacquered_cherry_wood')); break;
+    case 'cabinetE': if (!ixModel(C.I, ig, 'chinese_cabinet', 0, 0, 0, 0, { fit: [w, h, d] })) ixCase(C, ig, w, d, h, { mat: pbr('lacquered_cherry_wood'), doors: 2 }); break;
+    case 'divan': {
+      ixBox(ig, w, 0.22, d, 0, 0.11, 0, fm);
+      const cm = pbr(r() < 0.5 ? 'velour_velvet' : 'floral_jacquard', { tint: C.pal.blanket[0] });
+      ixBox(ig, w - 0.04, 0.12, d - 0.06, 0, 0.28, 0.02, cm);
+      for (let i = 0; i < Math.floor(w / 0.55); i++) { const bc = ixBox(ig, 0.48, 0.4, 0.14, -w / 2 + 0.3 + i * 0.55, 0.52, -d / 2 + 0.1, pbr('quatrefoil_jacquard_fabric', { tint: C.pal.blanket[(i + 1) & 3] })); bc.rotation.x = -0.2; }
+      for (const sx of [-1, 1]) ixCyl(ig, 0.11, 0.11, d * 0.8, sx * (w / 2 - 0.12), 0.45, 0.02, cm, 12, Math.PI / 2);
+      break;
+    }
+    case 'traytable': { ixCyl(ig, 0.4, 0.4, 0.02, 0, 0.42, 0, copperMat, 28); for (let i = 0; i < 4; i++) { const l = ixBox(ig, 0.025, 0.45, 0.025, 0, 0.2, 0, fm); l.rotation.set(0, i * Math.PI / 2 + 0.78, 0.35); l.position.set(Math.cos(i * Math.PI / 2 + 0.78) * 0.12, 0.2, Math.sin(i * Math.PI / 2 + 0.78) * 0.12); } ixModel(C.I, ig, 'brass_vase_02', 0, 0.43, 0, 0, { h: 0.2 }); for (let i = 0; i < 4; i++) ixCyl(ig, 0.025, 0.02, 0.07, Math.cos(i * 1.6) * 0.22, 0.465, Math.sin(i * 1.6) * 0.22, C.m.glass, 10); ixBowl(C, ig, 0.18, 0.43, -0.15, 'fruit'); break; }
+    case 'lowtable': { if (S === 'east' && ixModel(C.I, ig, 'chinese_tea_table', 0, 0, 0, 0, { h: 0.38 })) { ixModel(C.I, ig, 'tea_set_01', 0, 0.38, 0, 0, { w: 0.55 }); } else { ixBox(ig, w, 0.05, d, 0, 0.36, 0, fm); for (const [a, b] of [[-1, -1], [1, 1], [-1, 1], [1, -1]]) ixBox(ig, 0.05, 0.34, 0.05, a * (w / 2 - 0.06), 0.17, b * (d / 2 - 0.06), fm); ixBowl(C, ig, 0, 0.385, 0, 'fruit'); } break; }
+    case 'cushion': ixBox(ig, 0.5, 0.06, 0.5, 0, 0.03, 0, pbr('velour_velvet', { tint: C.pal.blanket[(it.x * 7 | 0) & 3] })); break;
+    case 'table': case 'tableRich': ixTable(C, ig, it); break;
+    case 'chess': { ixBox(ig, 0.62, 0.04, 0.62, 0, 0.68, 0, fm); ixCyl(ig, 0.04, 0.06, 0.66, 0, 0.33, 0, fm, 10); ixCyl(ig, 0.2, 0.22, 0.03, 0, 0.015, 0, fm, 16); ixModel(C.I, ig, 'chess_set', 0, 0.7, 0, 0.2, { w: 0.5 }); break; }
+    case 'toys': { ixChestAt(C, ig, 0, 0, w, d, h, false); ixModel(C.I, ig, 'horse_statue_01', 0.25, h, 0, 0.5, { h: 0.2 }); const b = new THREE.Mesh(AGEO.sph, amat(0xb83a2a)); b.scale.setScalar(0.14); b.position.set(-0.6, 0.07, 0.35); ig.add(b); ixBox(ig, 0.05, 0.02, 0.45, 0.6, 0.01, 0.4, C.m.furn, 0.7); ixBox(ig, 0.15, 0.02, 0.03, 0.55, 0.012, 0.3, C.m.furn, 0.7); const doll = new THREE.Group(); doll.position.set(-0.2, h, 0.05); ig.add(doll); ixCyl(doll, 0.05, 0.07, 0.16, 0, 0.08, 0, pbr('rough_linen', { tint: 0xb04a4a }), 8); const hd = new THREE.Mesh(AGEO.sph, amat(0xe8c8a8)); hd.scale.setScalar(0.07); hd.position.y = 0.2; doll.add(hd); break; }
+    case 'rug': case 'rugK': { const kind = S === 'desert' ? 'kilim' : C.pf.wealth < 0.35 ? 'rag' : C.pf.sty === 'north' && r() < 0.5 ? 'kilim' : 'persian'; const rg = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshStandardMaterial({ map: ixRugTex((it.x * 31 + it.z * 17 + it.room) & 1023, kind), normalMap: ixTex('caban', 'n'), normalScale: new THREE.Vector2(0.5, 0.5), roughness: 1 })); rg.rotation.x = -Math.PI / 2; rg.position.y = 0.012; ig.add(rg); break; }
+    case 'pegs': {
+      ixBox(ig, w, 0.1, 0.03, 0, 1.75, -d / 2 + 0.02, C.m.furnDark);
+      const n = Math.floor(w / 0.28);
+      for (let i = 0; i < n; i++) { const x = -w / 2 + 0.14 + i * 0.28; ixCyl(ig, 0.012, 0.015, 0.08, x, 1.74, -d / 2 + 0.07, fm, 6, Math.PI / 2 - 0.3); if (r() < 0.75) ixGarment(C, ig, x, 1.76, -d / 2 + 0.02, ['tunic', 'dress', 'cloak', 'tunic'][Math.floor(r() * 4)], [0x6a4a2a, 0x3a4a6a, 0x5a2a24, 0x4a5a3a, 0x8a7a5a, 0x2a2a2a, C.pal.curtain][Math.floor(r() * 7)]); else if (r() < 0.5) { const hat = ixCyl(ig, 0.12, 0.2, 0.02, x, 1.62, -d / 2 + 0.12, pbr('caban', { tint: 0x3a2a1a }), 14); hat.rotation.x = 1.2; } }
+      for (let i = 0; i < 2; i++) { const bo = new THREE.Group(); bo.position.set(-w / 2 + 0.2 + i * 0.18, 0, 0.05); ig.add(bo); ixBox(bo, 0.09, 0.28, 0.1, 0, 0.14, -0.02, pbr('brown_leather')); ixBox(bo, 0.09, 0.06, 0.26, 0, 0.03, 0.05, pbr('brown_leather')); }
+      break;
+    }
+    case 'night': {
+      if (!ixModel(C.I, ig, S === 'med' ? 'painted_wooden_nightstand' : 'ClassicNightstand_01', 0, 0, 0, 0, { fit: [w, h, d] })) { ixBox(ig, w, 0.04, d, 0, h - 0.02, 0, fm); ixBox(ig, w - 0.04, h - 0.1, d - 0.04, 0, (h - 0.1) / 2 + 0.04, 0, fm); }
+      ixCandle(C, ig, -0.1, h, 0, 0.14);
+      if (C.pf.bookish || r() < 0.4) ixBooks(C, ig, 0.1, h, 0.05, 0.05, 0.2, 0.15).rotation.z = Math.PI / 2; else ixCyl(ig, 0.04, 0.035, 0.09, 0.12, h + 0.045, 0.05, C.m.glaze, 10);
+      break;
+    }
+    case 'logs': { for (let i = 0; i < 14; i++) { const row = Math.floor(i / 5), c2 = ixCyl(ig, 0.07, 0.075, d - 0.05, -w / 2 + 0.1 + (i % 5) * 0.19 + row * 0.09, 0.075 + row * 0.13, (r() - 0.5) * 0.04, C.m.log, 8, Math.PI / 2); c2.rotation.z = (r() - 0.5) * 0.1; if (row > 2) break; } ixModel(C.I, ig, 'hatchet', w / 2 - 0.1, 0.02, 0.1, 0.3, { h: 0.28, rx: -Math.PI / 2 }); break; }
+    case 'basketF': { const bk = ixModel(C.I, ig, r() < 0.5 ? 'wicker_basket_01' : 'wicker_basket_02', 0, 0, 0, r() * 6, { w: w * 0.9 }); const fill = r(); if (fill < 0.4) { const lin = new THREE.Mesh(ixBlanketGeo(0.25, 0.3, 0.05, 1, i2(it)), pbr('rough_linen', { tint: 0xf0ebe0, side: THREE.DoubleSide })); lin.position.y = 0.14; ig.add(lin); } else if (fill < 0.7) ixFood(C, ig, 0, 0.08, 0, r() < 0.5 ? 'veg' : 'fruit', 6); void bk; break; }
+    case 'stoolW': if (!ixModel(C.I, ig, S === 'east' ? 'chinese_stool' : C.pf.wealth < 0.35 ? 'wooden_stool_01' : r() < 0.5 ? 'painted_wooden_stool' : 'wooden_stool_01', 0, 0, 0, r() * 6, { h: 0.48 })) { ixBox(ig, 0.36, 0.04, 0.36, 0, 0.46, 0, fm); } break;
+    case 'sideTable': {
+      const done = ixModel(C.I, ig, r() < 0.5 ? 'side_table_01' : 'round_wooden_table_02', 0, 0, 0, 0, { fit: [w, h, d] });
+      const th = done ? done.userData.dims[1] : h; if (!done) { ixBox(ig, w, 0.04, d, 0, h - 0.02, 0, fm); ixCyl(ig, 0.04, 0.05, h - 0.04, 0, (h - 0.04) / 2, 0, fm, 10); }
+      const q2 = r(); if (q2 < 0.35) ixFlowers(C, ig, 0, th, 0); else if (q2 < 0.6) ixBowl(C, ig, 0, th, 0, 'fruit'); else if (q2 < 0.8) { ixCandle(C, ig, -0.1, th, 0, 0.15); ixModel(C.I, ig, 'jug_01', 0.12, th, 0, 1, { h: 0.18 }); } else ixModel(C.I, ig, ['carved_wooden_elephant', 'horse_statue_01', 'brass_vase_01', 'sungka_board'][Math.floor(r() * 4)], 0, th, 0, r() * 6, { h: 0.18 });
+      break;
+    }
+    case 'pedestal': { ixCyl(ig, 0.16, 0.2, 1.05, 0, 0.525, 0, pbr('marble_01'), 16); ixBox(ig, 0.4, 0.06, 0.4, 0, 1.08, 0, pbr('marble_01')); ixModel(C.I, ig, ['marble_bust_01', 'horse_head', 'lion_head', 'antique_ceramic_vase_01', 'brass_vase_01', 'bull_head'][Math.floor(r() * 6)], 0, 1.11, 0, 0, { h: 0.42 }); break; }
+    case 'ladder': ixModel(C.I, ig, 'wooden_ladder_02', 0, 0, 0, 0, { h: 1.7 }); break;
+    default: ixBox(ig, w, h || 0.5, d, 0, (h || 0.5) / 2, 0, fm);
+  }
+}
+const i2 = it => (Math.abs(it.x * 997 + it.z * 131) | 0) + 1;
+function ixTopClutter(C, g, w, d, h) {
+  const r = C.r;
+  if (r() < 0.5) ixCandle(C, g, -w / 2 + 0.15, h, 0, 0.16);
+  if (C.pf.tidy > 0.6 && r() < 0.6) ixFlowers(C, g, w / 2 - 0.2, h, 0);
+  else if (r() < 0.6) ixModel(C.I, g, ['brass_vase_01', 'antique_ceramic_vase_01', 'ceramic_vase_02', 'carved_wooden_elephant', 'marble_bust_01'][Math.floor(r() * 5)], w / 2 - 0.2, h, 0, r() * 6, { h: 0.28 });
+  if (r() < 0.5) ixBooks(C, g, 0, h, 0, 0.18, 0.22, 0.16);
+}
+
+/* ---------- the shell: floors, ceilings and beams, the walls between rooms, the stairs ---------- */
+function ixSubRect(R, h) {
+  if (!h || !ixRectsOverlap(R, h)) return [R];
+  const out = [];
+  if (h[0] > R[0]) out.push([R[0], h[0], R[2], R[3]]);
+  if (h[1] < R[1]) out.push([h[1], R[1], R[2], R[3]]);
+  const x0 = Math.max(R[0], h[0]), x1 = Math.min(R[1], h[1]);
+  if (h[2] > R[2]) out.push([x0, x1, R[2], h[2]]);
+  if (h[3] < R[3]) out.push([x0, x1, h[3], R[3]]);
+  return out.filter(q => q[1] - q[0] > 0.01 && q[3] - q[2] > 0.01);
+}
+function ixShell(C) {
+  const { g, P, pal } = C, r = C.r, S = C.pf.sty;
+  // floors, room by room, open where the stair comes up
+  for (const R of P.rooms) {
+    const y = R.l === 0 ? 0.108 : R.l * IX_FY + 0.004, fk = pal.fl[R.id];
+    const mat = fk === '*earth' ? pbr('patterned_clay_wall', { tint: 0x8a7258 }) : pbr(fk, { tint: C.pf.tidy < 0.3 ? 0xb8b0a4 : 0xffffff });
+    const e = 0.14, fx0 = Math.abs(R.x0 + P.X) < 0.02 ? R.x0 - e : R.x0, fx1 = Math.abs(R.x1 - P.X) < 0.02 ? R.x1 + e : R.x1, fz0 = Math.abs(R.z0 + P.Z) < 0.02 ? R.z0 - e : R.z0, fz1 = Math.abs(R.z1 - P.Z) < 0.02 ? R.z1 + e : R.z1;
+    for (const q of ixSubRect([fx0, fx1, fz0, fz1], P.holes[R.l])) ixQuad(g, q[1] - q[0], q[3] - q[2], (q[0] + q[1]) / 2, y, (q[2] + q[3]) / 2, 0, mat, q[0], -q[3], -Math.PI / 2);
+    if (fk === '*earth' || (C.pf.wealth < 0.3 && R.l === 0 && (S === 'temp' || S === 'north') && /plank|old_|weathered/.test(fk) && C.r() < 0.5)) { const st = new THREE.Mesh(new THREE.PlaneGeometry(R.x1 - R.x0 - 0.2, R.z1 - R.z0 - 0.2), new THREE.MeshStandardMaterial({ map: ixGrimeTex('straw'), transparent: true, depthWrite: false, roughness: 1 })); st.rotation.x = -Math.PI / 2; st.position.set((R.x0 + R.x1) / 2, y + 0.004, (R.z0 + R.z1) / 2); g.add(st); }
+  }
+  // the upper floors themselves, their joists and the ceilings below them
+  for (let l = 1; l < P.nL; l++) for (const q of ixSubRect([-P.X, P.X, -P.Z, P.Z], P.holes[l])) ixBox(g, q[1] - q[0], 0.16, q[3] - q[2], (q[0] + q[1]) / 2, l * IX_FY - 0.08, (q[2] + q[3]) / 2, C.m.beam);
+  for (const R of P.rooms) {
+    const top = R.l * IX_FY + P.ceil[R.l], kind = pal.ceil[R.id], kitchen = R.type === 'kitchen';
+    const cm = kind === 'plaster' ? pbr('plastered_wall', { tint: 0xf2eee6 }) : kind === 'limed' ? pbr('roof_planks', { tint: 0xe6e0d4 }) : kind === 'east' ? pbr('japanese_cedar_planks', { tint: 0xd8c8b0 }) : pbr(r() < 0.5 ? 'roof_planks' : 'dark_wooden_planks', { tint: kitchen ? 0x6a5a4a : 0xc8b8a8 });
+    const hole = P.holes[R.l + 1];
+    for (const q of ixSubRect([R.x0, R.x1, R.z0, R.z1], hole)) ixQuad(g, q[1] - q[0], q[3] - q[2], (q[0] + q[1]) / 2, top - 0.002, (q[2] + q[3]) / 2, 0, cm, q[0], q[2], Math.PI / 2);
+    const bm = kitchen ? pbr(pal.beam, { tint: 0x5a4a3a }) : C.m.beam;
+    if (kind === 'plaster') { for (const [x, z, w, d] of [[(R.x0 + R.x1) / 2, R.z0 + 0.05, R.x1 - R.x0, 0.1], [(R.x0 + R.x1) / 2, R.z1 - 0.05, R.x1 - R.x0, 0.1], [R.x0 + 0.05, (R.z0 + R.z1) / 2, 0.1, R.z1 - R.z0], [R.x1 - 0.05, (R.z0 + R.z1) / 2, 0.1, R.z1 - R.z0]]) ixBox(g, w, 0.1, d, x, top - 0.05, z, pbr('plastered_wall', { tint: 0xe8e2d6 })); continue; }
+    const alongX = R.x1 - R.x0 < R.z1 - R.z0, span = alongX ? R.x1 - R.x0 : R.z1 - R.z0, run0 = alongX ? R.z0 : R.x0, run1 = alongX ? R.z1 : R.x1, step = kind === 'east' ? 0.6 : 0.95 + r() * 0.25, bs = kind === 'east' ? [0.06, 0.06] : [0.16, 0.2];
+    for (let s = run0 + step * 0.6; s < run1 - 0.2; s += step) {
+      if (hole && (alongX ? s > hole[2] && s < hole[3] : s > hole[0] && s < hole[1])) continue;
+      if (alongX) ixBox(g, span, bs[1], bs[0], (R.x0 + R.x1) / 2, top - bs[1] / 2, s, bm); else ixBox(g, bs[0], bs[1], span, s, top - bs[1] / 2, (R.z0 + R.z1) / 2, bm);
+    }
+  }
+  // the walls between rooms: each face finished as its own room is, doorways cased in wood, a door standing open
+  for (const w of P.walls) {
+    const y0 = w.l === 0 ? 0.108 : w.l * IX_FY, y1 = w.l * IX_FY + P.ceil[w.l], H2 = y1 - y0, T = 0.12;
+    const east = S === 'east';
+    const opens = w.doors.map(d => [d.p - d.w / 2, d.p + d.w / 2]).sort((a, b) => a[0] - b[0]);
+    const segs = []; let a = w.a0;
+    for (const [o0, o1] of opens) { if (o0 > a) segs.push([a, o0, 0]); segs.push([o0, o1, 1]); a = o1; }
+    if (a < w.a1) segs.push([a, w.a1, 0]);
+    const place = (m, along, zOff, width, yb, hh, face) => {
+      // a quad lying along the wall line, offset to one side
+      const c = (along[0] + along[1]) / 2;
+      if (w.ax === 'x') ixQuad(g, width, hh, w.c + zOff, yb + hh / 2, c, face < 0 ? -Math.PI / 2 : Math.PI / 2, m, along[0], yb);
+      else ixQuad(g, width, hh, c, yb + hh / 2, w.c + zOff, face < 0 ? Math.PI : 0, m, along[0], yb);
+    };
+    for (const [side, R] of [[-1, w.lo], [1, w.hi]]) {
+      const f = pal.fin[R.id], dado = f ? f.dado : 0, mU = east ? new THREE.MeshStandardMaterial({ map: texFor('shoji'), roughness: 0.9 }) : f ? ixFinMat(f, false) : pbr('raw_plank_wall', { tint: 0xc0a080 }), mL = east ? mU : f ? ixFinMat(f, true) : mU;
+      for (const [s0, s1, isDoor] of segs) {
+        const len = s1 - s0;
+        if (isDoor) { const dh = east ? 1.85 : 2.05; if (H2 > dh) place(mU, [s0, s1], side * T / 2, len, y0 + dh, H2 - dh, side); continue; }
+        if (dado > 0) { place(mL, [s0, s1], side * T / 2, len, y0, dado, side); place(mU, [s0, s1], side * T / 2, len, y0 + dado, H2 - dado, side); const rail = w.ax === 'x' ? [0.03, 0.045, len] : [len, 0.045, 0.03]; ixBox(g, rail[0], rail[1], rail[2], w.ax === 'x' ? w.c + side * (T / 2 + 0.015) : (s0 + s1) / 2, y0 + dado + 0.02, w.ax === 'x' ? (s0 + s1) / 2 : w.c + side * (T / 2 + 0.015), C.m.furnDark); }
+        else place(mU, [s0, s1], side * T / 2, len, y0, H2, side);
+      }
+    }
+    for (const [s0, s1, isDoor] of segs) {
+      const mid = (s0 + s1) / 2, len = s1 - s0;
+      if (!isDoor) {
+        // skirting board, and the wall is solid to walk into
+        const sk = w.ax === 'x' ? [T + 0.03, 0.13, len] : [len, 0.13, T + 0.03]; ixBox(g, sk[0], sk[1], sk[2], w.ax === 'x' ? w.c : mid, y0 + 0.065, w.ax === 'x' ? mid : w.c, C.m.furnDark);
+        C.I.ixCol.push(w.ax === 'x' ? [w.c - 0.07, w.c + 0.07, s0, s1, w.l] : [s0, s1, w.c - 0.07, w.c + 0.07, w.l]);
+        if (east) for (let t2 = s0; t2 <= s1 + 1e-6; t2 += Math.max(0.9, len / Math.max(1, Math.round(len / 0.9)))) ixBox(g, w.ax === 'x' ? T + 0.02 : 0.06, H2, w.ax === 'x' ? 0.06 : T + 0.02, w.ax === 'x' ? w.c : t2, y0 + H2 / 2, w.ax === 'x' ? t2 : w.c, C.m.furnDark);
+        continue;
+      }
+      // the doorway: casing on both faces, and the door itself hung open against the wall
+      const dh = east ? 1.85 : 2.05, cm = C.m.furnDark;
+      for (const e of [s0, s1]) ixBox(g, w.ax === 'x' ? T + 0.06 : 0.08, dh + 0.05, w.ax === 'x' ? 0.08 : T + 0.06, w.ax === 'x' ? w.c : e, y0 + (dh + 0.05) / 2, w.ax === 'x' ? e : w.c, cm);
+      ixBox(g, w.ax === 'x' ? T + 0.06 : len + 0.16, 0.1, w.ax === 'x' ? len + 0.16 : T + 0.06, w.ax === 'x' ? w.c : mid, y0 + dh + 0.05, w.ax === 'x' ? mid : w.c, cm);
+      const child = w.doors.find(d => Math.abs(d.p - mid) < 0.05), cr = child && P.rooms.find(q => q.door === child);
+      if (!east && cr && r() < 0.75) {
+        const sgn = w.ax === 'x' ? Math.sign(cr.x0 + cr.x1 - 2 * w.c) : Math.sign(cr.z0 + cr.z1 - 2 * w.c), dw = len - 0.04;
+        const dm = pbr('dark_wooden_planks', { tint: 0xc0a890 });
+        if (w.ax === 'x') { ixBox(g, dw, dh - 0.02, 0.045, w.c + sgn * (dw / 2 + 0.08), y0 + dh / 2, s0 + 0.03, dm); C.I.ixCol.push([Math.min(w.c, w.c + sgn * (dw + 0.1)), Math.max(w.c, w.c + sgn * (dw + 0.1)), s0, s0 + 0.08, w.l]); ixBox(g, dw * 0.8, 0.05, 0.05, w.c + sgn * (dw / 2 + 0.08), y0 + 0.5, s0 + 0.06, ironMat); ixBox(g, dw * 0.8, 0.05, 0.05, w.c + sgn * (dw / 2 + 0.08), y0 + dh - 0.4, s0 + 0.06, ironMat); }
+        else { ixBox(g, 0.045, dh - 0.02, dw, s0 + 0.03, y0 + dh / 2, w.c + sgn * (dw / 2 + 0.08), dm); C.I.ixCol.push([s0, s0 + 0.08, Math.min(w.c, w.c + sgn * (dw + 0.1)), Math.max(w.c, w.c + sgn * (dw + 0.1)), w.l]); ixBox(g, 0.05, 0.05, dw * 0.8, s0 + 0.06, y0 + 0.5, w.c + sgn * (dw / 2 + 0.08), ironMat); ixBox(g, 0.05, 0.05, dw * 0.8, s0 + 0.06, y0 + dh - 0.4, w.c + sgn * (dw / 2 + 0.08), ironMat); }
+      }
+    }
+  }
+  // the stairs: solid treads with nosings, a handrail and balusters on the open side
+  for (const f of P.flights) {
+    const n = 15, rise = (f.yB - f.yA) / n, dir = Math.sign(f.zB - f.zA), run = Math.abs(f.zB - f.zA) / n, base = f.l === 0 ? 0.108 : f.l * IX_FY, w = f.x1 - f.x0, xc = (f.x0 + f.x1) / 2;
+    for (let k = 0; k < n; k++) {
+      const top = f.yA + (k + 1) * rise, zc = f.zA + dir * (k + 0.5) * run;
+      ixBox(g, w, top - base - 0.04, run + 0.01, xc, base + (top - base - 0.04) / 2, zc, C.m.beam);
+      ixBox(g, w, 0.04, run + 0.04, xc, top - 0.02, zc + dir * 0.015, C.m.furn);
+    }
+    const openX = [f.x0, f.x1].filter(x => Math.abs(Math.abs(x) - P.X) > 0.05);
+    for (const x of openX) {
+      const L = Math.hypot(f.zB - f.zA, f.yB - f.yA), ang = Math.atan2(f.yB - f.yA, Math.abs(f.zB - f.zA));
+      const rail = ixBox(g, 0.06, 0.06, L, x, (f.yA + f.yB) / 2 + 0.95, (f.zA + f.zB) / 2, C.m.furnDark); rail.rotation.x = dir > 0 ? ang : -ang;
+      for (let k = 1; k < n; k += 1) { const top = f.yA + (k + 0.5) * rise, zc = f.zA + dir * (k + 0.5) * run; ixBox(g, 0.035, 0.95, 0.035, x, top + 0.47, zc, C.m.furn); }
+      for (const [zz, yy] of [[f.zA, f.yA], [f.zB, f.yB]]) ixBox(g, 0.1, 1.15, 0.1, x, yy + 0.57 + (yy === f.yA ? base - f.yA : 0), zz, C.m.furnDark);
+      C.I.ixCol.push([x - 0.04, x + 0.04, f.z0, f.z1, f.l]);
+    }
+    C.I.ixCol.push([f.x0, f.x1, f.zB - 0.04, f.zB + 0.04, f.l]);
+    // the rail round the stairwell above
+    const hole = P.holes[f.l + 1], yl = f.yB;
+    const edges = [[hole[0], hole[0], hole[2], hole[3]], [hole[1], hole[1], hole[2], hole[3]], [hole[0], hole[1], hole[2], hole[2]], [hole[0], hole[1], hole[3], hole[3]]];
+    for (const [ex0, ex1, ez0, ez1] of edges) {
+      const vert = ex0 === ex1;
+      if (vert && Math.abs(Math.abs(ex0) - P.X) < 0.05) continue;
+      if (!vert && Math.abs(ez0 - f.zB) < 0.02) continue;   // the stair comes up here
+      const L = vert ? ez1 - ez0 : ex1 - ex0, cx = (ex0 + ex1) / 2, cz = (ez0 + ez1) / 2;
+      ixBox(g, vert ? 0.07 : L, 0.07, vert ? L : 0.07, cx, yl + 0.95, cz, C.m.furnDark);
+      for (let t2 = 0.12; t2 < L; t2 += 0.14) ixBox(g, 0.035, 0.92, 0.035, vert ? cx : ex0 + t2, yl + 0.46, vert ? ez0 + t2 : cz, C.m.furn);
+      C.I.ixCol.push(vert ? [cx - 0.04, cx + 0.04, ez0, ez1, f.l + 1] : [ex0, ex1, cz - 0.04, cz + 0.04, f.l + 1]);
+    }
+  }
+}
+// dust and disorder, cobwebs in the corners, and what hangs from the kitchen beams
+function ixClutter(C) {
+  const { g, P, pf } = C, r = C.r;
+  for (const R of P.rooms) {
+    if (R.open != null) continue;
+    const y = R.l === 0 ? 0.112 : R.l * IX_FY + 0.008, top = R.l * IX_FY + P.ceil[R.l];
+    if (pf.tidy < 0.55) for (let i = 0; i < 1 + Math.floor((0.55 - pf.tidy) * 6); i++) {
+      const s = 0.8 + r() * 1.6, m = new THREE.Mesh(new THREE.PlaneGeometry(s, s), new THREE.MeshStandardMaterial({ map: ixGrimeTex(r() < 0.2 ? 'spill' : 'dirt'), transparent: true, depthWrite: false, roughness: 1, polygonOffset: true, polygonOffsetFactor: -2 }));
+      m.rotation.set(-Math.PI / 2, 0, r() * 6); m.position.set(R.x0 + 0.5 + r() * (R.x1 - R.x0 - 1), y + 0.002, R.z0 + 0.5 + r() * (R.z1 - R.z0 - 1)); g.add(m);
+    }
+    if (pf.tidy < 0.5) for (const [cx, cz, a] of [[R.x0, R.z0, 0], [R.x1, R.z0, -Math.PI / 2], [R.x0, R.z1, Math.PI / 2], [R.x1, R.z1, Math.PI]]) {
+      if (r() > 0.7 - pf.tidy) continue;
+      const cw = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.7), new THREE.MeshBasicMaterial({ map: ixCobwebTex(), transparent: true, depthWrite: false, side: THREE.DoubleSide, opacity: 0.8 }));
+      cw.position.set(cx + Math.cos(a + Math.PI / 4) * 0.25 * Math.SQRT2 * (a === 0 || a === Math.PI / 2 ? 1 : 1), top - 0.2, cz); cw.position.set(cx + (cx < 0 || cx === R.x0 ? 0.25 : -0.25), top - 0.22, cz + (cz === R.z0 ? 0.25 : -0.25)); cw.rotation.set(0.6, a + Math.PI / 4 + Math.PI, 0); g.add(cw);
+    }
+    // things left on the floor in an untidy house: a heap of clothes, boots, a basket, a bottle
+    if (pf.tidy < 0.4 && R.type !== 'washroom') for (let i = 0; i < 1 + Math.floor(r() * 3); i++) {
+      const x = R.x0 + 0.6 + r() * (R.x1 - R.x0 - 1.2), z = R.z0 + 0.6 + r() * (R.z1 - R.z0 - 1.2), q = [x - 0.3, x + 0.3, z - 0.3, z + 0.3];
+      if (R.occ.some(o => ixRectsOverlap(o, q)) || R.keep.some(o => ixRectsOverlap(o, q))) continue;
+      const kind = r();
+      if (kind < 0.4) { const heap = new THREE.Mesh(ixBlanketGeo(0.4, 0.5, 0.05, 1.5, i * 17 + R.id), pbr(['caban', 'rough_linen', 'poly_wool_herringbone'][i % 3], { tint: C.pal.blanket[i & 3], side: THREE.DoubleSide })); heap.position.set(x, y + 0.02, z); heap.rotation.y = r() * 6; g.add(heap); }
+      else if (kind < 0.6) { for (let b = 0; b < 2; b++) { const bo = new THREE.Group(); bo.position.set(x + b * 0.14, y, z); bo.rotation.y = r() * 6; if (b && r() < 0.5) bo.rotation.z = Math.PI / 2; g.add(bo); ixBox(bo, 0.09, 0.26, 0.1, 0, 0.13, -0.02, pbr('brown_leather')); ixBox(bo, 0.09, 0.06, 0.26, 0, 0.03, 0.05, pbr('brown_leather')); } }
+      else if (kind < 0.8) ixModel(C.I, g, 'wicker_basket_02', x, y, z, r() * 6, { w: 0.34 });
+      else { const b = ixCyl(g, 0.035, 0.035, 0.26, x, y + 0.035, z, C.m.glass, 10, 0, r() * 6, Math.PI / 2); void b; }
+    }
+    // the kitchen's hams, sausages, strings of onions and bunches of herbs hanging from the beams
+    if (R.type === 'kitchen' || (R.type === 'hall' && !P.rooms.some(q => q.type === 'kitchen')) || R.type === 'pantry') {
+      const n = 3 + Math.floor(r() * 4);
+      for (let i = 0; i < n; i++) {
+        const x = R.x0 + 0.6 + (i + 0.5) * (R.x1 - R.x0 - 1.2) / n, z = R.z0 + 0.7 + r() * 0.6, kind = r();
+        const hook = top - 0.25;
+        ixBox(g, 0.008, 0.25, 0.008, x, top - 0.12, z, amat(0xb8a070));
+        if (kind < 0.25) { const prof = []; for (let k = 0; k <= 12; k++) { const t2 = k / 12; prof.push(new THREE.Vector2(Math.max(0.012, Math.sin(Math.pow(t2, 0.7) * Math.PI) * (0.05 + 0.08 * t2)), -t2 * 0.42)); } const hm = new THREE.Mesh(new THREE.LatheGeometry(prof, 14), C.m.ham); hm.scale.set(1, 1, 0.8); hm.position.set(x, hook, z); hm.rotation.z = 0.08; g.add(hm); ixCyl(g, 0.018, 0.02, 0.1, x, hook - 0.02, z, amat(0xe8dcc0), 6); }
+        else if (kind < 0.45) for (let k = 0; k < 6; k++) { const s = new THREE.Mesh(AGEO.cyl, C.m.ham); s.scale.set(0.04, 0.2, 0.04); s.position.set(x + (k - 2.5) * 0.045, hook - 0.12, z); s.rotation.z = (k - 2.5) * 0.06; g.add(s); }
+        else if (kind < 0.7) for (let k = 0; k < 7; k++) { if (!ixModel(C.I, g, 'yellow_onion', x + Math.sin(k * 2.1) * 0.04, hook - 0.06 - k * 0.07, z + Math.cos(k * 2.1) * 0.04, k, { h: 0.07 })) { const o = new THREE.Mesh(AGEO.sph, amat(0xc88a3a)); o.scale.setScalar(0.07); o.position.set(x, hook - k * 0.07, z); g.add(o); } }
+        else for (let k = 0; k < 9; k++) { const st = ixCyl(g, 0.004, 0.004, 0.32, x + (r() - 0.5) * 0.08, hook - 0.16, z + (r() - 0.5) * 0.08, C.m.herb, 4); st.rotation.set((r() - 0.5) * 0.3, 0, (r() - 0.5) * 0.3); const lf = new THREE.Mesh(AGEO.cone, C.m.herb); lf.scale.set(0.06, 0.12, 0.06); lf.rotation.x = Math.PI; lf.position.set(st.position.x, hook - 0.28, st.position.z); g.add(lf); }
+      }
+    }
+    // a light for every room: a chandelier in a rich house, an iron ring of candles or a lantern in the rest
+    if (!C.I.lightSpots.some(s => s[0] > R.x0 && s[0] < R.x1 && s[2] > R.z0 && s[2] < R.z1 && s[1] > R.l * IX_FY && s[1] < (R.l + 1) * IX_FY) && R.type !== 'store' && R.type !== 'pantry') {
+      const cx = (R.x0 + R.x1) / 2, cz = (R.z0 + R.z1) / 2;
+      if (C.pf.sty === 'east') { ixModel(C.I, g, 'chinese_chandelier', cx, top - 0.7, cz, 0, { h: 0.6 }) || paperLantern(C.I, g, cx, top - 0.6, cz); ixLight(C, cx, top - 0.7, cz); }
+      else if (C.pf.wealth > 0.72 && (R.type === 'parlour' || R.type === 'dining' || R.type === 'hall' || R.type === 'master')) { const ch = ixModel(C.I, g, r() < 0.5 ? 'Chandelier_03' : 'lantern_chandelier_01', cx, top - 0.85, cz, 0, { h: 0.8 }); if (ch) ixBox(g, 0.015, 0.1, 0.015, cx, top - 0.05, cz, ironMat); else chandelier(C.I, g, cx, top - 0.9, cz, 0.4, 6); ixLight(C, cx, top - 0.9, cz); }
+      else if (C.pf.wealth > 0.35 && R.type !== 'washroom' && R.type !== 'landing') { chandelier(C.I, g, cx, top - 0.85, cz, 0.3, 4); }
+      else { const lt = ixModel(C.I, g, 'wooden_lantern_01', cx, top - 0.55, cz, 0, { h: 0.4 }); if (lt) { ixBox(g, 0.01, 0.15, 0.01, cx, top - 0.08, cz, ironMat); const gl = new THREE.Mesh(AGEO.sph, glowMat(0xffb060)); gl.scale.setScalar(0.07); gl.position.set(cx, top - 0.38, cz); g.add(gl); } ixLight(C, cx, top - 0.6, cz); }
+    }
+  }
+}
+// hundreds of little meshes become one per material
+function ixBake(root) {
+  root.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(root.matrixWorld).invert(), buckets = new Map();
+  root.traverse(o => {
+    if (!o.isMesh || o.isSkinnedMesh || Array.isArray(o.material) || !o.visible) return;
+    for (let p = o; p && p !== root; p = p.parent) if (p.userData.noBake) return;
+    const ge = o.geometry;
+    if (!ge.attributes.position || !ge.attributes.normal || ge.morphAttributes.position) return;
+    let b = buckets.get(o.material); if (!b) buckets.set(o.material, b = []);
+    b.push(o);
+  });
+  const M = new THREE.Matrix4(), NM = new THREE.Matrix3(), v = new THREE.Vector3();
+  for (const [mat, list] of buckets) {
+    if (list.length < 2) continue;
+    let nv = 0, ni = 0;
+    for (const o of list) { nv += o.geometry.attributes.position.count; ni += o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count; }
+    const pos = new Float32Array(nv * 3), nor = new Float32Array(nv * 3), uv = new Float32Array(nv * 2), idx = new Uint32Array(ni);
+    let vo = 0, io = 0;
+    for (const o of list) {
+      M.multiplyMatrices(inv, o.matrixWorld); NM.getNormalMatrix(M);
+      const ge = o.geometry, P2 = ge.attributes.position, N2 = ge.attributes.normal, U2 = ge.attributes.uv;
+      for (let i = 0; i < P2.count; i++) {
+        v.fromBufferAttribute(P2, i).applyMatrix4(M); pos.set([v.x, v.y, v.z], (vo + i) * 3);
+        v.fromBufferAttribute(N2, i).applyMatrix3(NM).normalize(); nor.set([v.x, v.y, v.z], (vo + i) * 3);
+        if (U2) { uv[(vo + i) * 2] = U2.getX(i); uv[(vo + i) * 2 + 1] = U2.getY(i); }
+      }
+      if (ge.index) for (let i = 0; i < ge.index.count; i++) idx[io++] = ge.index.getX(i) + vo; else for (let i = 0; i < P2.count; i++) idx[io++] = i + vo;
+      // a mirrored transform turns the faces inside out; flip them back
+      if (M.determinant() < 0) for (let i = io - (ge.index ? ge.index.count : P2.count); i < io; i += 3) { const t2 = idx[i + 1]; idx[i + 1] = idx[i + 2]; idx[i + 2] = t2; }
+      vo += P2.count;
+      o.parent.remove(o);
+    }
+    const bg = new THREE.BufferGeometry();
+    bg.setAttribute('position', new THREE.BufferAttribute(pos, 3)); bg.setAttribute('normal', new THREE.BufferAttribute(nor, 3)); bg.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); bg.setIndex(new THREE.BufferAttribute(idx, 1));
+    bg.computeBoundingSphere();
+    const mm = new THREE.Mesh(bg, mat); mm.receiveShadow = true; mm.userData.baked = true; root.add(mm);
+  }
+}
+
+/* ---------- a home, furnished ---------- */
+function ixMats(C) {
+  const pal = C.pal, H = C.H;
+  const stone = H.wst === 5 ? 'red_brick' : C.pf.sty === 'desert' ? 'patterned_clay_wall' : C.pf.sty === 'med' ? 'white_stucco' : H.wst === 4 ? 'medieval_blocks_03' : 'old_stone_wall';
+  C.m = {
+    furn: pbr(pal.furn), furnDark: pbr(pal.furn, { tint: 0x8a7a6a }), beam: pbr(pal.beam, { tint: 0xb0a090 }), linen: pbr('rough_linen', { tint: 0xf2ede2 }), ticking: pbr('rough_linen', { tint: 0xd8ccb0 }),
+    hearthStone: pbr(stone, { tint: C.pf.sty === 'med' ? 0xe8e0d0 : 0xffffff }), slate: pbr('slate_floor'), soot: new THREE.MeshStandardMaterial({ color: 0x0c0806, roughness: 1 }), log: pbr('medieval_wood', { tint: 0x6a5040 }),
+    wax: new THREE.MeshStandardMaterial({ color: 0xf2ead4, roughness: 0.6, emissive: 0x3a2a10, emissiveIntensity: 0.3 }), crust: new THREE.MeshStandardMaterial({ map: ixCrustTex(), roughness: 0.8 }), rind: new THREE.MeshStandardMaterial({ map: ixRindTex(), roughness: 0.7 }),
+    plate: new THREE.MeshStandardMaterial({ map: ixPlateTex(C.H.id % 9, C.pf.sty), roughness: 0.25 }), pages: new THREE.MeshStandardMaterial({ color: 0xe8dcc0, roughness: 0.9 }), paper: new THREE.MeshStandardMaterial({ color: 0xf0e8d4, roughness: 0.9 }),
+    glaze: new THREE.MeshStandardMaterial({ color: C.pf.sty === 'east' ? 0xd8dcd8 : C.pf.sty === 'med' ? 0x2a5aa0 : 0xa87a4a, roughness: 0.3 }), water: new THREE.MeshStandardMaterial({ color: 0x3a4a50, roughness: 0.05, metalness: 0.2, transparent: true, opacity: 0.85 }),
+    glass: new THREE.MeshStandardMaterial({ color: 0x5a7a4a, roughness: 0.08, transparent: true, opacity: 0.7 }), crumb: new THREE.MeshStandardMaterial({ color: 0xa87a4a, roughness: 1 }), flour: new THREE.MeshStandardMaterial({ color: 0xf0ece4, roughness: 1 }),
+    grain: new THREE.MeshStandardMaterial({ color: 0xd8b870, roughness: 1 }), ham: new THREE.MeshStandardMaterial({ color: 0x6a3420, roughness: 0.45, map: ixCanvas('hamskin', 128, 128, (g2, w, h, r) => { g2.fillStyle = '#b07a52'; g2.fillRect(0, 0, w, h); for (let i = 0; i < 900; i++) { g2.fillStyle = `rgba(${r() < 0.5 ? '90,40,20' : '220,180,130'},${r() * 0.3})`; g2.fillRect(r() * w, r() * h, 2 + r() * 4, 2); } }) }), herb: new THREE.MeshStandardMaterial({ color: 0x5a6a2a, roughness: 1 }), stem: new THREE.MeshStandardMaterial({ color: 0x4a6a2a, roughness: 1 }), leaf: new THREE.MeshStandardMaterial({ color: 0x3a6a2a, roughness: 0.8, side: THREE.DoubleSide }),
+  };
+  C.plateGeo = C.plateGeo || new THREE.CylinderGeometry(0.5, 0.4, 0.02, 24);
+}
+function dressHome2(t, H) {
+  const P = H.homePlan;
+  const I = { group: new THREE.Group(), colliders: [], ixCol: [], lights: [], fires: [], lightSpots: [], H, world: true, plan: P, v2: true };
+  const g = I.group;
+  if (!IX.man || !IX.art) I.ixPending = true;
+  g.position.set(H.x, H.y, H.z); g.rotation.y = H.rot;
+  const pal = ixPalette(P, t, H), C = { I, g, P, pf: P.pf, pal, H, t, r: G.mkRng((t.s.seed * 7 + H.id * 5381 + 99) >>> 0) };
+  ixMats(C);
+  ixShell(C);
+  for (const it of P.items) ixBuildItem(C, it);
+  if (P.pf.empty) for (const it of P.items) if (!it.wallArt && it.h > 0.5 && it.w > 0.45 && !/hearth|Hearth|firepit|kamado|irori|tannur|brazier/.test(it.k) && C.r() < 0.8) {
+    const sh = new THREE.Mesh(ixBlanketGeo(it.w + 0.1, it.d + 0.1, Math.min(it.h, 1.0), 0.6, it.room * 31 + (it.x * 100 | 0)), pbr('rough_linen', { tint: 0xe8e2d4, side: THREE.DoubleSide }));
+    sh.position.set(it.x, (it.l === 0 ? 0.108 : it.l * IX_FY) + Math.min(it.h, 1.2) + 0.02, it.z); sh.rotation.y = it.rot || 0; g.add(sh);
+  }
+  ixClutter(C);
+  // what the shader needs to paint the outer walls room by room, and to keep windows off the furnished walls
+  I.ixFin = P.rooms.filter(R => pal.fin[R.id]).map(R => {
+    const f = pal.fin[R.id], x0 = Math.abs(R.x0 + P.X) < 0.02 ? R.x0 - 1.5 : R.x0, x1 = Math.abs(R.x1 - P.X) < 0.02 ? R.x1 + 1.5 : R.x1, z0 = Math.abs(R.z0 + P.Z) < 0.02 ? R.z0 - 1.5 : R.z0, z1 = Math.abs(R.z1 - P.Z) < 0.02 ? R.z1 + 1.5 : R.z1;
+    return { rect: [x0, z0, x1, z1], y0: R.l === 0 ? -4 : R.l * IX_FY - 0.2, y1: R.l === P.nL - 1 ? 60 : (R.l + 1) * IX_FY - 0.2, slots: f.lo + f.up * 16, dado: f.dado, tu: new THREE.Color(f.tu), tl: new THREE.Color(f.tl), grime: f.grime, cur: f.cur != null ? new THREE.Color(f.cur) : null };
+  });
+  I.ixZones = P.zones.map(z => ({ rect: [z[0], z[2], z[1], z[3]], y0: z[4] * IX_FY - 0.3, y1: z[4] === P.nL - 1 ? 60 : (z[4] + 1) * IX_FY - 0.3 }));
+  ixFixStencils();
+  ixBake(g);
+  g.traverse(o => { if (o.isMesh) { o.receiveShadow = true; o.castShadow = false; } });
+  scene.add(g);
+  return I;
+}
+
+/* ---------- into the game: plans, dressing, floors, walls you can't walk through, and life indoors ---------- */
+const ixV2 = H => !!(H && H.kind === 'home' && !H.round && H.homePlan && H.homePlan.v2);
+// plans are worked out when first needed: a great city has a thousand homes
+const _assignRoutinesIX = assignRoutines;
+assignRoutines = function (t) {
+  _assignRoutinesIX(t);
+  for (const H of t.layout.houses) if (H.kind === 'home' && !H.round && !H.tent) {
+    let plan = null;
+    Object.defineProperty(H, 'homePlan', { configurable: true, get() { if (!plan) { try { plan = ixPlan(t, H); } catch (e) { console.warn('interiors: plan failed', e); plan = homePlan(t, H); } } return plan; }, set(v) { void v; } });
+  }
+};
+const _dressHouseIX = dressHouse;
+let ixPreloaded = false;
+dressHouse = function (t, H) {
+  if (ixV2(H)) {
+    if (!ixPreloaded && IX.man) { ixPreloaded = true; for (const n of Object.keys(IX.man)) ixRequest(n); }
+    try { return dressHome2(t, H); } catch (e) { console.warn('interiors: dress failed', e); const I = { group: new THREE.Group(), colliders: [], ixCol: [], lights: [], fires: [], lightSpots: [], H, world: true, plan: H.homePlan, v2: true }; I.group.position.set(H.x, H.y, H.z); I.group.rotation.y = H.rot; scene.add(I.group); return I; }
+  }
+  const I = _dressHouseIX(t, H);
+  // the glowing box that stood for a ceiling lamp becomes a real hanging lantern
+  if (I && I.group) {
+    const boxes = [];
+    I.group.traverse(o => { if (o.isMesh && o.geometry === AGEO.box && o.material && o.material.isMeshBasicMaterial && o.material.color.getHex() === 0xffc070) boxes.push(o); });
+    for (const o of boxes) {
+      const par = o.parent, p0 = o.position.clone();
+      const lt = ixModel(null, par, 'wooden_lantern_01', p0.x, p0.y - 0.25, p0.z, 0, { h: 0.45 });
+      if (lt) { o.visible = false; ixBox(par, 0.012, 0.6, 0.012, p0.x, p0.y + 0.5, p0.z, ironMat); const gl = new THREE.Mesh(AGEO.sph, glowMat(0xffb060)); gl.scale.setScalar(0.08); gl.position.set(p0.x, p0.y - 0.02, p0.z); par.add(gl); }
+      else if (!IX.glb.has('wooden_lantern_01')) IX.anyPending = true;
+    }
+  }
+  // shops, inns and workshops get their walls finished too
+  if (I && !I.ixFin && !H.round && /^(shop|inn|smithy|eatery|gaminghouse|craftshop)$/.test(H.kind) && H.style !== 'eastern') {
+    const r = G.mkRng((t.s.seed + H.id * 131) >>> 0), med = H.style === 'mediterranean', desert = t.s.culture === 'desert';
+    const lime = IX_LIME[Math.floor(r() * IX_LIME.length)], X = H.w / 2 + 1.5, Z = H.dp / 2 + 1.5;
+    const panel = !med && !desert && r() < 0.6;
+    I.ixFin = [{ rect: [-X, -Z, X, Z], y0: -4, y1: 60, slots: (panel ? IX_WSLOT[r() < 0.5 ? 'wooden_panels' : 'dark_paneled_wood'] : med || desert ? IX_WSLOT.interior_tiles : IX_WSLOT.plastered_wall) + (med ? IX_WSLOT.white_stucco : desert ? IX_WSLOT.patterned_clay_wall : IX_WSLOT.plastered_wall) * 16,
+      dado: panel ? 1.1 : med || desert ? 1.05 : 0, tu: new THREE.Color(med ? 0xf2ece0 : lime), tl: new THREE.Color(panel ? 0xffffff : 0xffffff), grime: 0.25 + r() * 0.3, cur: null }];
+    I.ixZones = [];
+  }
+  return I;
+};
+const _undressIX = undressHouse;
+undressHouse = function (I) {
+  for (const f of I.realFires || []) disposeRealFire(f);
+  if (!I.v2) return _undressIX(I);
+  scene.remove(I.group);
+  I.group.traverse(o => { if (o.isMesh && o.geometry && !o.geometry.userData.shared && !Object.values(AGEO).includes(o.geometry)) o.geometry.dispose(); });
+};
+// the surface under your feet: a floor, or a stair, or nothing where the stairwell opens
+function ixSurface(P, lx, lz, rel) {
+  let best = -1e9;
+  const reach = rel + 0.62;
+  for (let l = 0; l < P.nL; l++) {
+    const y = l === 0 ? 0.108 : l * IX_FY, h = P.holes[l];
+    if (y > reach) continue;
+    if (l > 0 && h && lx > h[0] && lx < h[1] && lz > h[2] && lz < h[3]) continue;
+    best = Math.max(best, y);
+  }
+  for (const f of P.flights) if (lx >= f.x0 - 0.02 && lx <= f.x1 + 0.02 && lz >= f.z0 - 0.02 && lz <= f.z1 + 0.02) {
+    const ya = f.yA === 0 ? 0.108 : f.yA, t = clamp((lz - f.zA) / (f.zB - f.zA), 0, 1), y = ya + (f.yB - ya) * t;
+    if (y <= reach) best = Math.max(best, y);
+  }
+  return best < -1e8 ? 0.108 : best;
+}
+const _interiorFloorIX = interiorFloor;
+interiorFloor = function (x, z, feet) {
+  for (const I of dressed.values()) {
+    if (!I.v2) continue;
+    const H = I.H, [lx, lz] = houseFrame(H).toLocal(x, z);
+    if (Math.abs(lx) > H.w / 2 - 0.3 || Math.abs(lz) > H.dp / 2 - 0.3) continue;
+    return H.y + ixSurface(I.plan, lx, lz, feet - H.y);
+  }
+  return _interiorFloorIX(x, z, feet);
+};
+const ixLevel = (P, rel) => clamp(Math.floor((rel + 1.0) / IX_FY), 0, P.nL - 1);
+const _blockedWorldIX = blockedWorld;
+blockedWorld = function (x, z) {
+  if (player.mode === 'walk') for (const I of dressed.values()) {
+    if (!I.v2) continue;
+    const H = I.H, [lx, lz] = houseFrame(H).toLocal(x, z);
+    if (Math.abs(lx) > H.w / 2 - 0.4 || Math.abs(lz) > H.dp / 2 - 0.4) continue;
+    const l = ixLevel(I.plan, player.pos.y - 1.7 - H.y), F = 0.26;
+    for (const q of I.ixCol) if (q[4] === l && lx > q[0] - F && lx < q[1] + F && lz > q[2] - F && lz < q[3] + F) return true;
+  }
+  return _blockedWorldIX(x, z);
+};
+// the valuables: what's in the chests, cupboards and on the shelves
+const _lootSpotsIX = lootSpots;
+lootSpots = function (H) {
+  if (!ixV2(H)) return _lootSpotsIX(H);
+  const P = H.homePlan, out = [];
+  for (const it of P.items) {
+    const lab = { chest: 'the chest', commode: 'the chest of drawers', wardrobe: 'the wardrobe', cupboard: 'the cupboard', dresser: 'the kitchen dresser', shelf: 'the shelf', desk: 'the writing desk', cabinetE: 'the tansu chest', books: 'the bookcase', toys: 'the toy chest' }[it.k];
+    if (!lab) continue;
+    const [fx, fz] = [it.x + Math.sin(it.rot) * (it.d / 2 + 0.45), it.z + Math.cos(it.rot) * (it.d / 2 + 0.45)];
+    const rich = /chest|commode|wardrobe|desk|cabinetE/.test(it.k);
+    out.push({ lx: fx, lz: fz, lvl: Math.min(1, it.l), label: lab, loud: rich ? 0.6 : 0.35, gold: rich ? [3, 14 + Math.round(P.pf.wealth * 30)] : [0, 5], item: rich ? 0.3 : 0.2, food: it.k === 'dresser' || it.k === 'shelf' });
+  }
+  for (const B of P.beds) if (!B.kid && !B.mat) out.push({ lx: B.x + Math.sin(B.rot) * 1.35, lz: B.z + Math.cos(B.rot) * 1.35, lvl: Math.min(1, Math.round(B.fy / IX_FY)), label: 'the chest at the foot of the bed', loud: 0.7, gold: [4, 18], item: 0.3 });
+  return out;
+};
+
+/* ---------- townsfolk at home: through the doors, up the stairs, to what they're doing ---------- */
+function ixRoomAt(P, lx, lz, l) { return P.rooms.find(R => R.l === l && lx >= R.x0 - 0.05 && lx <= R.x1 + 0.05 && lz >= R.z0 - 0.05 && lz <= R.z1 + 0.05) || P.rooms.find(R => R.l === l && R.hub); }
+const ixFloorY = l => l === 0 ? 0.108 : l * IX_FY;
+// each waypoint carries the height of the floor (or stair) it stands on: [x, z, y]
+function ixToHub(P, R) { const pts = [], y = ixFloorY(R ? R.l : 0); for (let g2 = 0; R && !R.hub && g2 < 12; g2++) { if (R.door && R.open == null) pts.push([...R.door.pIn, y], [...R.door.pOut, y]); R = P.rooms[R.parent]; } return pts; }
+function ixStairPts(P, from, to) {
+  const pts = [];
+  // up the flight, then step off the landing sideways, clear of every stairwell (and the reverse on the way down)
+  const leg = (f, up) => {
+    const xc = (f.x0 + f.x1) / 2, ya = ixFloorY(f.l), yb = ixFloorY(f.l + 1), a = [xc, f.zA + (f.zA > f.zB ? 0.7 : -0.7), ya], b = [xc, f.zB + (f.zB < f.zA ? -0.7 : 0.7), yb];
+    const wallLeft = Math.abs(f.x0 + P.X) < 0.05 || P.flights.some(g => g.x1 <= f.x0 + 0.01 && Math.abs(g.x0 + P.X) < 0.05);
+    const lx = wallLeft ? Math.max(...P.flights.map(g => g.x1)) + 0.55 : Math.min(...P.flights.map(g => g.x0)) - 0.55, side = [lx, b[1], yb];
+    return up ? [a, [xc, f.zA, ya], [xc, f.zB, yb], b, side] : [side, b, [xc, f.zB, yb], [xc, f.zA, ya], a];
+  };
+  if (to > from) for (let l = from; l < to; l++) pts.push(...leg(P.flights[l], true));
+  else for (let l = from - 1; l >= to; l--) pts.push(...leg(P.flights[l], false));
+  return pts;
+}
+function ixRoute(P, fromL, from, toL, to) {
+  const A = ixRoomAt(P, from[0], from[1], fromL), B = ixRoomAt(P, to[0], to[1], toL);
+  if (A === B) return [];
+  const up = ixToHub(P, A), down = ixToHub(P, B).reverse();
+  return [...up, ...(fromL !== toL ? ixStairPts(P, fromL, toL) : []), ...down];
+}
+const ixW = (fr, q) => { const w = fr.toWorld(q[0], q[1]); if (q.length > 2) w.push(q[2]); return w; };
+const _goToIX = goTo;
+goTo = function (a, tg) {
+  const was = a.inHouse, wasV = ixV2(was), fromL = a._lvl || 0, from = wasV ? houseFrame(was).toLocal(a.x, a.z) : null;
+  _goToIX(a, tg);
+  if (!a.path) return;
+  try {
+    if (wasV && !(tg && tg.house === was)) {
+      const P = was.homePlan, fr = houseFrame(was);
+      const pts = ixRoute(P, fromL, from, 0, [0, P.Z - 1.0]).map(q => ixW(fr, q));
+      if (a.path.length) a.path[0] = [...a.path[0].slice(0, 2), ixFloorY(0)];
+      a.path.unshift(...pts);
+    }
+    if (tg && ixV2(tg.house)) {
+      const H = tg.house, P = H.homePlan, fr = houseFrame(H), to = fr.toLocal(tg.x, tg.z), toL = tg.lvl || 0;
+      const pts = (was === H ? ixRoute(P, fromL, from, toL, to) : ixRoute(P, 0, [0, P.Z - 1.0], toL, to)).map(q => ixW(fr, q));
+      if (a.path.length) { const last = a.path.length - 1; a.path[last] = [a.path[last][0], a.path[last][1], ixFloorY(toL)]; if (was !== H && last > 0) a.path[last - 1] = [...a.path[last - 1].slice(0, 2), ixFloorY(0)]; }
+      if (pts.length) a.path.splice(a.path.length - 1, 0, ...pts);
+    }
+  } catch (e) { void e; }
+  a._fromY = a._fy != null && wasV ? a._fy : null; a._fromXZ = [a.x, a.z]; a._next = a.path[0];
+};
+// walking indoors, a townsman's height follows the floors and stairs his waypoints were laid on
+const _updatePersonIX = updatePerson;
+updatePerson = function (a, dt) {
+  _updatePersonIX(a, dt);
+  const H = (a.target && a.target.house) || a.inHouse;
+  if (!ixV2(H) || a.fightMode || !a.path) return;
+  if (a.path.length) {
+    if (a.path[0] !== a._next) { if (a._next) { a._fromXZ = [a._next[0], a._next[1]]; if (a._next.length > 2) a._fromY = a._next[2]; } a._next = a.path[0]; }
+    const nx = a._next, ny = nx.length > 2 ? nx[2] : null;
+    if (a._fromY == null && ny == null) return;
+    const fy = a._fromY == null ? ny : ny == null ? a._fromY : (() => { const tot = Math.hypot(nx[0] - a._fromXZ[0], nx[1] - a._fromXZ[1]), left = Math.hypot(nx[0] - a.x, nx[1] - a.z); return a._fromY + (ny - a._fromY) * clamp(1 - left / Math.max(0.01, tot), 0, 1); })();
+    a._fy = fy; a._lvl = Math.round(fy / IX_FY);
+    a.y = H.y + fy; a.g.position.y = a.y;
+  } else { a._fy = a.y - H.y; a._lvl = (a.target && a.target.lvl) || Math.round(Math.max(0, a.y - H.y - 0.1) / IX_FY); a._fromY = a._fy; }
+};
+const _targetForIX = targetFor;
+targetFor = function (a, goal) {
+  const H = a.home;
+  if (!ixV2(H) || (goal !== 'inside' && goal !== 'homeMeal')) return _targetForIX(a, goal);
+  const P = H.homePlan, owners = houseOwners(a.town, H), n = owners.length, k = Math.max(0, owners.indexOf(a)), kid = a.res.job === 'Child';
+  const at = (x, z, rot, act, l, ex) => roomTarget(H, [x, z, rot], act, Object.assign({ floorY: l ? l * IX_FY - 0.1 : 0, lvl: l || 0 }, ex || {}));
+  if (goal === 'inside' && a.asleep) {
+    const [bi, off] = P.bedFor.get(a) || [-1, 0], B = P.beds[bi];
+    if (!B) return at(P.cook[0] + 0.9, P.cook[1] + 0.5 + (k % 3) * 0.7, 0, 'lie', 0, { lieH: 0.14 });
+    const c = Math.cos(B.rot), sn = Math.sin(B.rot), l = Math.round(B.fy / IX_FY);
+    return at(B.x + off * c, B.z - off * sn, B.rot, 'lie', l, { lieH: B.lieH || 0.62 });
+  }
+  const seatT = s => at(s[0], s[1], s[2], s[3] || 'sit', s[5] || 0, { tool: kid ? null : 'mug' });
+  if (goal === 'homeMeal') {
+    if (n > 1 && (k + calDay) % n === 0 && !kid) return at(P.cook[0], P.cook[1], P.cook[2], 'fire', P.cook[4] || 0);
+    const s = P.seats[k % P.seats.length];
+    return s ? seatT(s) : _targetForIX(a, goal);
+  }
+  // awake at home: cooking, sweeping, talking by the fire, and each to their own pursuits about the house
+  const pick = (a.idx + Math.floor(tod * 2)) % 7;
+  if (pick === 0 && !kid) return at(P.cook[0], P.cook[1], P.cook[2], 'fire', P.cook[4] || 0);
+  if (pick === 1 && !kid) return at(P.sweep[0], P.sweep[1], 0, 'sweep', 0, { tool: 'broom' });
+  if (pick === 2 && P.chat.length) { const c = P.chat[k % P.chat.length]; return at(c[0], c[1], c[2], 'chat', 0); }
+  const acts = P.acts.filter(s => kid ? s[3] === 'sitlow' || s[3] === 'sit' : s[3] !== 'sitlow');
+  if (acts.length && pick >= 3) { const s = acts[(a.idx * 3 + Math.floor(tod) + pick) % acts.length]; return at(s[0], s[1], s[2], s[3], s[4], s[5] ? { tool: s[5] } : null); }
+  const s = P.seats[k % Math.max(1, P.seats.length)];
+  return s ? seatT(s) : _targetForIX(a, goal);
+};
+
+/* ---------- each frame: which house the walls are painted for, and where grass mustn't grow ---------- */
+let ixFocus = null;
+function ixTick() {
+  let i = 0;
+  const p = player.pos;
+  const near = [...dressed.values()].filter(I => I.H).sort((a, b) => Math.hypot(a.H.x - p.x, a.H.z - p.z) - Math.hypot(b.H.x - p.x, b.H.z - p.z));
+  for (const I of near) { if (i >= 6) break; const H = I.H, round = H.round; U.uCut.value[i].set(H.x, H.z, Math.cos(H.rot), Math.sin(H.rot)); U.uCutS.value[i].set(round ? H.w * 0.34 : H.w / 2 + 0.02, round ? H.w * 0.34 : H.dp / 2 + 0.02, H.y + 0.1, 0); i++; }
+  for (; i < 6; i++) U.uCutS.value[i].x = 0;
+  // an interior is drawn only when you could see into it: you're inside, or near its door or its walls
+  for (const I of near) {
+    if (!I.group || !I.world) continue;
+    const H = I.H, [dx, dz] = houseFrame(H).toWorld(0, frontZ(H)), r0 = Math.max(H.w, H.round ? H.w : H.dp) / 2;
+    I.group.visible = playerHouse === H || Math.hypot(dx - p.x, dz - p.z) < 10 || Math.hypot(H.x - p.x, H.z - p.z) < r0 + 2.5;
+  }
+  let best = null, bd = 16;
+  for (const I of near) if (I.ixFin) { const d = Math.hypot(I.H.x - p.x, I.H.z - p.z) - (playerHouse === I.H ? 100 : 0); if (d < bd) { bd = d; best = I; } }
+  if (!IX_ATL.ready) best = null;
+  if (best === ixFocus) return;
+  ixFocus = best;
+  if (!best) { U.uInOn.value = 0; return; }
+  const H = best.H, F = best.ixFin.slice(0, IX_NR), Z = (best.ixZones || []).slice(0, IX_NZ);
+  U.uInOn.value = 1; U.uInH.value.set(H.x, H.z, Math.cos(H.rot), Math.sin(H.rot)); U.uInY.value = H.y; U.uInN.value = F.length; U.uInZN.value = Z.length;
+  F.forEach((f, j) => {
+    U.uInR.value[j].set(f.rect[0], f.rect[1], f.rect[2], f.rect[3]); U.uInB.value[j].set(f.y0, f.y1, f.slots, f.dado);
+    U.uInC.value[j].set(f.tu.r, f.tu.g, f.tu.b, 0); U.uInD.value[j].set(f.tl.r, f.tl.g, f.tl.b, f.grime);
+    U.uInE.value[j].set(f.cur ? f.cur.r : 0, f.cur ? f.cur.g : 0, f.cur ? f.cur.b : 0, f.cur ? 1 : 0);
+  });
+  Z.forEach((z, j) => { U.uInZ.value[j].set(z.rect[0], z.rect[1], z.rect[2], z.rect[3]); U.uInZ2.value[j].set(z.y0, z.y1, 0, 0); });
+}
+// the room lights reach further and fall off by the square of the distance, not at a hard edge on the wall
+const _updateLightPoolIX = updateLightPool;
+updateLightPool = function () {
+  _updateLightPoolIX();
+  const H = playerHouse, v2 = ixV2(H);
+  let rooms = null, mine = null, P = null, fr = null;
+  if (v2) {
+    P = H.homePlan; fr = houseFrame(H);
+    const l = ixLevel(P, player.pos.y - 1.7 - H.y), [px, pz] = fr.toLocal(player.pos.x, player.pos.z);
+    mine = ixRoomAt(P, px, pz, l);
+    rooms = P.rooms.filter(R => R.l === l && R.open == null).sort((a, b) => (b === mine) - (a === mine));
+  }
+  // a light in another room would shine through the walls from behind (there are no point-light shadows): keep light in its own room
+  const roomOf = (L) => { const [lx, lz] = fr.toLocal(L.position.x, L.position.z), ly = L.position.y - H.y; if (Math.abs(lx) > P.X + 0.2 || Math.abs(lz) > P.Z + 0.2) return undefined; return ixRoomAt(P, lx, lz, clamp(Math.floor(ly / IX_FY), 0, P.nL - 1)); };
+  const same = R => R === mine || (R && mine && (R.open === mine.id || mine.open === R.id));
+  let k = 0;
+  for (const L of lightPool) {
+    if (H && L.intensity > 0 && L.distance < 14) { L.distance = 24; L.decay = 2; L.intensity *= 1.3; } else L.decay = 1.5;
+    if (!rooms || L.intensity <= 0) continue;
+    if (L.color.getHex() === 0xdce6ff) {
+      const R = rooms[k++];
+      if (!R || !same(R)) { L.intensity = 0; continue; }
+      const [x, z] = fr.toWorld((R.x0 + R.x1) / 2, (R.z0 + R.z1) / 2);
+      L.position.set(x, H.y + R.l * IX_FY + P.ceil[R.l] - 0.5, z); L.intensity *= 1.6;
+      continue;
+    }
+    const R = roomOf(L);
+    if (R !== undefined && !same(R)) L.intensity *= 0.08;
+    // candlelight is warm but not the orange of an open fire
+    if (R !== undefined && L.distance >= 20) L.color.setHex(0xffc28e);
+  }
+};
+// indoors, ambient occlusion works at the scale of a room: tight contact shadows, not the wide sweep that suits a street
+let ixAOIn = null;
+function ixAOTick() {
+  if (!post.ao) return;
+  // flames, glows and cobwebs are see-through: they must not be solid walls to the occlusion pass, or they come out black
+  if (!post.ao.__ix) {
+    post.ao.__ix = true;
+    post.ao.overrideVisibility = function () {
+      const cache = this._visibilityCache;
+      this.scene.traverse(o => {
+        cache.set(o, o.visible);
+        if (o.isPoints || o.isLine || o.isSprite) { o.visible = false; return; }
+        const m = o.material;
+        if (o.isMesh && m && !Array.isArray(m) && m.transparent && (m.blending === THREE.AdditiveBlending || m.depthWrite === false)) o.visible = false;
+      });
+    };
+  }
+  const inside = !!playerHouse;
+  if (inside === ixAOIn) return;
+  ixAOIn = inside;
+  post.ao.updateGtaoMaterial(inside ? { radius: 0.45, distanceExponent: 1.0, thickness: 0.5, scale: 1.0, samples: 8 } : { radius: 2.2, distanceExponent: 2.0, thickness: 2.0, scale: 1.25, samples: 16 });
+}
+// candle flames turn to face you
+function ixCandleTick() {
+  const cam = camera.position, wv = new THREE.Vector3();
+  for (const I of dressed.values()) {
+    if (!I.candles || Math.hypot(I.H.x - cam.x, I.H.z - cam.z) > 25) continue;
+    for (const m of I.candles) { m.getWorldPosition(wv); const par = m.parent; m.rotation.y = Math.atan2(cam.x - wv.x, cam.z - wv.z) - (par ? new THREE.Euler().setFromQuaternion(par.getWorldQuaternion(new THREE.Quaternion()), 'YXZ').y : 0); }
+  }
+}
+const _updateHousesIX = updateHouses;
+updateHouses = function (dt) { _updateHousesIX(dt); ixTick(); ixCandleTick(); ixAOTick(); };
+// a dressed house whose models were still on their way is furnished again once they've come
+ixSoon = function () {
+  if (ixSoonT) return;
+  ixSoonT = setTimeout(() => {
+    ixSoonT = null;
+    if (IX.wait.size) { ixSoon(); return; }
+    for (const [k, I] of dressed) if (I.ixPending || (IX.anyPending && !I.v2)) { undressHouse(I); dressed.delete(k); }
+    IX.anyPending = false;
+    ixFocus = null;
+  }, 300);
+};
+
+/* ---------- shops: real wares on the shelves, and the common furniture of every interior made properly ---------- */
+for (const k in WARES) WARES[k].key = k;
+const IX_WARE = { jars: [['ceramic_vase_03', 'ceramic_vase_04', 'antique_ceramic_vase_01', 'brass_vase_04', 'ceramic_vase_01'], 'h', 0.24], pots: [['ceramic_pot', 'planter_pot_clay', 'ceramic_vase_02', 'antique_ceramic_vase_01'], 'h', 0.3],
+  bowls: [['wooden_bowl_01', 'wooden_bowl_02', 'carved_wooden_plate'], 'w', 0.26], tubs: [['wooden_bucket_02', 'wooden_bucket_01'], 'w', 0.45], chests: [['treasure_chest', 'wooden_crate_01'], 'w', 0.34], carvings: [['carved_wooden_elephant', 'horse_statue_01', 'marble_bust_01', 'horse_head', 'lion_head', 'bull_head'], 'h', 0.22],
+  copper: [['brass_pot_01', 'brass_pot_02', 'brass_pan_01', 'brass_vase_02', 'brass_vase_01'], 'w', 0.26], lamps: [['brass_diya_lantern', 'wooden_lantern_01'], 'h', 0.3], candles: [['wooden_candlestick'], 'h', 0.2], baskets: [['wicker_basket_01', 'wicker_basket_02'], 'w', 0.32],
+  barrels: [['wine_barrel_01'], 'h', 0.42], blades: [['ornate_medieval_dagger', 'antique_estoc', 'antique_katana_01', 'hatchet', 'wooden_axe'], 'lay', 0.5], fruit: [['food_apple_01', 'food_pomegranate_01', 'lemon', 'food_pears_asian_01', 'yellow_onion'], 'h', 0.09], dyes: [['wooden_bucket_02'], 'w', 0.4], glass: [['ceramic_vase_01', 'ceramic_vase_04', 'brass_vase_03'], 'h', 0.24] };
+const _wareMeshIX = wareMesh;
+wareMesh = function (g, Wr, i, x, y, z) {
+  const sp = IX_WARE[Wr.key];
+  if (sp && IX.man) {
+    const nm = sp[0][i % sp[0].length], o = sp[1] === 'lay' ? { h: sp[2], rx: -Math.PI / 2 } : { [sp[1]]: sp[2] };
+    const m = ixModel(null, g, nm, x, sp[1] === 'lay' ? y + 0.02 : y, z, (i * 1.7) % 6.28, o);
+    if (m) return m;
+    if (!IX.glb.has(nm)) { ixRequest(nm); IX.anyPending = true; }
+  }
+  if (Wr.key === 'cloth' || Wr.key === 'carpets') {
+    const c = Wr.cols[i % Wr.cols.length], mat = Wr.key === 'cloth' ? pbr(['rough_linen', 'velour_velvet', 'floral_jacquard', 'caban', 'poly_wool_herringbone', 'gingham_check'][i % 6], { tint: c }) : new THREE.MeshStandardMaterial({ map: ixRugTex(i * 13 + 5, i % 2 ? 'kilim' : 'persian'), roughness: 1 });
+    const L = Wr.key === 'cloth' ? 0.7 : 1.3, rr = Wr.key === 'cloth' ? 0.09 : 0.12;
+    return ixCyl(g, rr, rr, L, x, y + rr, z, mat, 16, 0, Math.PI / 2, Math.PI / 2);
+  }
+  if (Wr.key === 'cheese') { const m = ixCyl(g, 0.16, 0.16, 0.1, x, y + 0.05, z, new THREE.MeshStandardMaterial({ map: ixRindTex(), roughness: 0.7 }), 20); return m; }
+  if (Wr.key === 'sacks') { const s = new THREE.Mesh(AGEO.sph, pbr('hessian_230', { tint: 0xe0d0a8 })); s.scale.set(0.3, 0.28, 0.3); s.position.set(x, y + 0.14, z); g.add(s); const heap = new THREE.Mesh(AGEO.sph, amat(Wr.cols[i % Wr.cols.length])); heap.scale.set(0.22, 0.08, 0.22); heap.position.set(x, y + 0.27, z); g.add(heap); return s; }
+  if (Wr.key === 'shoes') {
+    // a pair of boots: shaped shaft, foot and heel, turned leather
+    const bo = new THREE.Group(); bo.position.set(x, y, z); bo.rotation.y = (i * 0.7) % 1 - 0.5; g.add(bo);
+    const lm = pbr('brown_leather', { tint: [0xffffff, 0xc8a080, 0x8a6a50, 0xe0c0a0][i % 4] }), sole = amat(0x2a1c14), tall = i % 3 !== 2;
+    for (const sx of [-0.055, 0.055]) {
+      if (tall) ixCyl(bo, 0.042, 0.038, 0.2, sx, 0.15, -0.035, lm, 12);
+      const f = new THREE.Mesh(AGEO.sph, lm); f.scale.set(0.085, 0.085, 0.24); f.position.set(sx, 0.045, 0.03); bo.add(f);
+      ixBox(bo, 0.085, 0.015, 0.25, sx, 0.008, 0.03, sole);
+      ixBox(bo, 0.07, 0.03, 0.06, sx, 0.02, -0.07, sole);
+    }
+    return bo;
+  }
+  if (Wr.key === 'jewels') {
+    if (i % 3 === 0) {
+      // a velvet tray of rings and chains
+      const tr = new THREE.Group(); tr.position.set(x, y, z); g.add(tr);
+      ixBox(tr, 0.3, 0.03, 0.2, 0, 0.015, 0, pbr('velour_velvet', { tint: [0x5a1020, 0x10203a, 0x1a3a20][i % 3] }));
+      for (let k = 0; k < 6; k++) { const rg = new THREE.Mesh(new THREE.TorusGeometry(0.014, 0.004, 6, 16), k % 3 ? goldMat : steelMat); rg.rotation.x = Math.PI / 2 - 0.4; rg.position.set(-0.1 + (k % 3) * 0.1, 0.04, -0.05 + Math.floor(k / 3) * 0.08); tr.add(rg); const gem = new THREE.Mesh(AGEO.sph, amat([0xa01020, 0x1060a0, 0x20a060][k % 3])); gem.scale.setScalar(0.012); gem.position.set(rg.position.x, 0.055, rg.position.z); tr.add(gem); }
+      const ch = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.003, 4, 24), goldMat); ch.rotation.x = Math.PI / 2; ch.position.set(0.06, 0.034, 0.02); tr.add(ch);
+      return tr;
+    }
+    const m = ixModel(null, g, ['brass_goblets', 'brass_vase_04', 'brass_vase_03', 'brass_pot_02', 'brass_candleholders'][i % 5], x, y, z, i, { h: 0.18 });
+    if (m) return m; if (!IX.glb.has('brass_goblets')) IX.anyPending = true;
+  }
+  if (Wr.key === 'books') return ixBooks({ m: { pages: new THREE.MeshStandardMaterial({ color: 0xe8dcc0 }) } }, g, x, y, z, 0.26, 0.24 + (i % 3) * 0.03, 0.18);
+  return _wareMeshIX(g, Wr, i, x, y, z);
+};
+// a small context so the shared shelf-fillers and builders work in any building
+function ixCtxFor(I) {
+  if (I._ixC) return I._ixC;
+  const H = I.H || I.house || { id: 0, wst: 0 }, t = H ? (houseTown(H) || { s: { seed: 1, culture: 'temperate' } }) : null;
+  const sty = H.style === 'eastern' ? 'east' : H.style === 'mediterranean' ? 'med' : t && t.s.culture === 'desert' ? 'desert' : 'temp';
+  const C = { I, g: I.group, P: { ceil: [3.1], rooms: [] }, pf: { tidy: 0.7, wealth: 0.5, sty, bookish: false }, pal: { furn: 'oak_veneer_01', beam: 'dark_wood', blanket: [0x8a2a24, 0x2a4a6a, 0x4a6a3a, 0x9a7a3a], curtain: 0x8a2a24 }, H, r: G.mkRng(((H.id || 1) * 7919 + 13) >>> 0) };
+  ixMats(C);
+  I._ixC = C;
+  return C;
+}
+const IX_SHOP_FILL = { shop: 'misc' };
+shelf = function (I, x, z, rot, w) {
+  const C = ixCtxFor(I), g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = rot; I.group.add(g);
+  const h = 1.9, d = 0.4;
+  for (const sx of [-1, 1]) ixBox(g, 0.05, h, d, sx * (w / 2 - 0.025), h / 2, 0, C.m.furn);
+  ixBox(g, w, h, 0.02, 0, h / 2, -d / 2 + 0.01, C.m.furnDark);
+  for (let k = 0; k < 4; k++) { const yy = 0.3 + k * 0.5; ixBox(g, w - 0.05, 0.03, d, 0, yy, 0, C.m.furn); ixFillShelf(C, g, w - 0.12, yy + 0.015, d, IX_SHOP_FILL[I.H && I.H.kind] || 'misc'); }
+  const c = Math.abs(Math.cos(rot)) > 0.5;
+  solid(I, x, z, c ? w : 0.5, c ? 0.5 : w);
+};
+const _barrelPropIX = barrelProp;
+barrelProp = function (I, x, z, s = 1) {
+  if (!ixModel(null, I.group, 'wine_barrel_01', x, 0.1, z, (x * 7 + z) % 6.28, { h: 0.9 * s })) { IX.anyPending = IX.anyPending || !IX.glb.has('wine_barrel_01'); return _barrelPropIX(I, x, z, s); }
+  solid(I, x, z, 0.65 * s, 0.65 * s);
+};
+const _stoolIX = stool;
+stool = function (I, x, z) { if (!ixModel(null, I.group, 'wooden_stool_01', x, 0.1, z, (x * 13 + z * 7) % 6.28, { h: 0.5 })) { IX.anyPending = IX.anyPending || !IX.glb.has('wooden_stool_01'); _stoolIX(I, x, z); } };
+table = function (I, x, z, w, d) {
+  const C = ixCtxFor(I), g = I.group, m = C.m.furn;
+  ixBox(g, w, 0.07, d, x, 0.8, z, pbr('kitchen_wood'));
+  for (const [lx, lz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) ixBox(g, 0.08, 0.72, 0.08, x + lx * (w / 2 - 0.1), 0.46, z + lz * (d / 2 - 0.1), m);
+  ixBox(g, w - 0.24, 0.05, 0.05, x, 0.28, z, m);
+  solid(I, x, z, w, d);
+  const cg = new THREE.Group(); cg.position.set(x, 0, z); g.add(cg);
+  ixCandle(C, cg, 0.1, 0.835, 0, 0.14);
+  ixCyl(cg, 0.045, 0.04, 0.1, -0.3, 0.885, 0.1, C.m.glaze, 12);
+  if (C.r() < 0.5) ixBowl(C, cg, 0.35, 0.835, -0.15, C.r() < 0.5 ? 'fruit' : null); else ixPlate(C, cg, 0.35, 0.845, -0.1, 0.22, true);
+};
+counter = function (I, x, z, w, rot) {
+  const C = ixCtxFor(I), g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = rot; I.group.add(g);
+  ixBox(g, w, 0.95, 0.56, 0, 0.575, 0.02, pbr('wooden_panels', { tint: 0xc8b8a0 }));
+  ixBox(g, w + 0.1, 0.07, 0.7, 0, 1.085, 0, pbr('dark_wood'));
+  ixBox(g, w, 0.1, 0.6, 0, 0.15, 0.03, C.m.furnDark);
+  const c = Math.abs(Math.cos(rot)) > 0.5;
+  solid(I, x, z, c ? w : 0.7, c ? 0.7 : w);
+};
+TEXT.rug = ixRugTex(3, 'persian');
+/* ==== INTERIORS II END ==== */
 </script>
