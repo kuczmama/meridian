@@ -28,6 +28,40 @@ Mountains, rivers, deserts, and jungles as far as you can walk. Towns full of pe
 
 ### 🏘️ Living towns
 - Hamlets, villages, towns, and cities in four cultures: temperate, northern, desert, and tropical. Each has its own architecture, landmark hall (chapel, longhall, domed hall, or great house), market, inn, and streets.
+- **Towns are where they are for a reason.** Every settlement is near water: a river, a lake or the sea. Harbours and rivers make towns grow, and only a place with a harbour or a river becomes a city. Dry country holds only temporary camps of tents round a fire, unless there's ore in the hills to mine.
+- **Three ways of building.**
+  - *Medieval* towns have half-timbered houses with jettied upper floors, and dense old-town rows three and four storeys high along cobbled lanes.
+  - *Mediterranean* towns on the warm coasts are pastel stucco weathering down to the stone. They have terracotta hip roofs, shutters and geraniums, iron balconies, roof terraces under pergolas, washing strung across the lanes, a marble church with a brick campanile (and a dome in a big town), a tiered fountain and cypresses. In the dry south they're whitewashed with blue domes.
+  - *Eastern* towns cover whole regions. They have dark-timber machiya with paper-screen windows under curved kawara roofs, a temple hall and a five-roofed pagoda, torii gates, stone lanterns, rock gardens of raked gravel, sakura, koi ponds, teahouses and shrines. The people have eastern names and dress.
+
+| | |
+|---|---|
+| ![A Mediterranean town under its campanile](docs/screenshots/campanile.jpg) | ![An eastern town round its pagoda and temple hall](docs/screenshots/eastern.jpg) |
+
+- **Towns build with what the land gives them:** stone and slate in the hills, timber and wooden shingle in the forests, brick and tile on the clay. A castle is stone where there's stone to quarry and a timber palisade fort where there isn't. Harbour towns keep a fleet of boats at the jetty.
+- **Castles.** An octagonal curtain wall with arrow slits and battlements. Drum towers with conical roofs or crenellated tops, and the lord's banners. A gatehouse with a raised portcullis, a moat and a lowered drawbridge. Round a flagged bailey stand the keep with its corner turrets, the great hall, barracks, an armoury, a chapel, a well, and a training yard of straw men and archery butts.
+- **The court.** In the great hall a king and queen (or a lord and lady) hold court on their thrones under a cloth of estate, morning and afternoon. The hall has black-and-white marble, a red carpet to the dais, feasting tables, a great fireplace, banners between the stained-glass windows, and open roof timbers. They sleep in the keep, in a canopied bed of state under a stone gallery. Knights and soldiers drill in the yard, sleep in bunks in the barracks, and guard the gates.
+
+| | |
+|---|---|
+| ![A castle on the hill above a Mediterranean city](docs/screenshots/castle.jpg) | ![The king and queen's great hall](docs/screenshots/throne.jpg) |
+
+- **Great cities.** Here and there, on the best harbour or river of a region, stands a great city of 1,000 to 2,400 people, some 800 metres across, with nothing else within a couple of kilometres but its own farms.
+  - *Its streets:* twelve avenues radiate from a cathedral-sized church (or temple, or domed hall), two ring boulevards circle the old town and the new, and hundreds of alleys fill the blocks between.
+  - *Its buildings:* over a thousand in all. There's a palace-castle on the high ground, flagstone piazzas with their own fountains and markets, noble mansions with walled gardens, guild halls, a college with a two-storey library, an open-air theatre with players on the stage, an arena, markets, bathhouses, dozens of eating houses and inns, and a hundred-odd craftsmen's shops.
+  - *Its people:* every resident is a real person with a home, a trade and a day: porters, clerks, labourers, hawkers, sailors, scholars, guildmasters, nobles and their servants. Only those near you are drawn, so a city of two thousand runs as smoothly as a village.
+
+![A great city on the coast at evening](docs/screenshots/greatcity.jpg)
+
+| | |
+|---|---|
+| ![A great eastern city by the sea](docs/screenshots/eastern-city.jpg) | ![A Mediterranean city with its gilded museum dome](docs/screenshots/mediterranean.jpg) |
+
+- **Cities are cities.** A dense centre of shops, a covered market, eating houses, a gaming house, public baths and latrines, an arena with a tilt barrier, and a museum. The grandest museums have a portico and a gilded dome over a rotunda where a dragon's skeleton hangs, with a plaque on every exhibit. Suburbs spread out along the roads past the walls, and royal roads, wide and cobbled, join the big towns.
+- **Every town has its institutions.** A hospital with physicians, nurses and patients in their cots. A brewery (sake in the east) with coppers and a mash tun. A garrison, and craftsmen's shops: an apothecary, a tailor, a cobbler, a chandler, a jeweller, a weaponsmith, and dozens more across the styles, each with its own wares on the shelves and a craftsman behind the counter. There are storehouses, granaries and harbour warehouses too.
+- **Trades by the land.** Watermills on the rivers. Gold-rush towns where prospectors pan the river below the sluices and sell their dust at the assay office: buy a pan and try it yourself. Smelters by the mines, lumberyards at the edge of forest towns, and shipyards where hulls stand on the slipways in their ribs, with a treadwheel crane over them.
+- **Every inside matches its outside.** Tall, ornate buildings are tall and ornate within; eastern rooms have tatami and paper screens, Mediterranean ones terracotta floors. Floors sit level on hillsides, with stone steps up to the door.
+- **Doors mean something.** Townsfolk walk round buildings, not through them, and come and go by the doors. A locked door must be unlocked: you'll see people fumble for the key on their step at night. Visitors knock, and are let in or turned away.
 - **Towns grow from their streets.** Winding main streets follow the lie of the land from the square out to every road; side lanes wander off them, and every lane ends at a house, a graveyard, a park, a cloister, or the castle. Hillside towns keep their slopes, and each house stands on its own ground.
 - **Every town lives by a trade**, chosen from the land around it, and is laid out to suit:
   - *fishing towns* along a waterfront promenade either side of the jetty;
@@ -39,7 +73,7 @@ Mountains, rivers, deserts, and jungles as far as you can walk. Towns full of pe
   - *farming villages* with lanes out to the barns; *seminaries* with a cloister and chanting monks; *castle towns* and cities with a keep, a moat and drawbridge, and a lord.
 - Towns are close together, a couple of kilometres apart, with hamlets between the cities.
 - **Trade:** each town's goods (salt fish, gold and iron ore, timber, furs, cloth, tools, grain) are cheap where they're made and dearer the further you carry them, dearest in the cities. Buy gold ore at the mine for half what the city pays. Carters haul loads between the towns and will tell you the prices.
-- The number of buildings matches the number of people: a hamlet of twelve has five homes, a city of seventy about forty-five buildings.
+- There's a home for every household, and the rest of the town is workplaces: a hamlet of a dozen people has half a dozen homes; a city of ninety has well over a hundred buildings, most of them shops, halls and storehouses; a great city of two thousand has more than a thousand.
 - Roads link the towns, cobbled near the cities, crossing rivers on timber or stone bridges, with milestones, wayside shrines, rest stops and benches at the best views. Walkers, pilgrims and carters travel them. Dirt tracks lead out to the places worth finding, over plank-and-rope footbridges, and animal trails wind through the woods.
 - **Every resident is a real person.** Each town's stated population is exactly the number of people who live there, and every one of them has a name, a job, a home, and a daily routine.
 - Households of people living alone, couples, and families. People work their stations (chopping, smithing, selling, farming) and eat lunch at the inn and supper at home. Children go to school, and everyone sleeps in their own beds at night.
@@ -129,6 +163,7 @@ Mountains, rivers, deserts, and jungles as far as you can walk. Towns full of pe
 | **R** | Eat or drink a healing draught |
 | **B** | Switch between sword and bow |
 | **E** at the water | Cast a line; E to strike, hold E to reel |
+| **E** in the river at the gold workings | Pan for gold (buy a pan from a prospector) |
 | **V** | Mount or dismount your horse |
 | **J** | Journal (quests, atlas, bestiary, people) |
 | **M** | Map |
@@ -178,9 +213,8 @@ docs/screenshots/   images for this README
 ## Roadmap
 
 Still to come:
-- climbable watchtowers, bell towers, and lighthouses, with windows placed where people would look out;
+- walkable castle walls and climbable towers;
 - caves you walk into seamlessly, with no loading screen;
-- more varied architecture, and interiors that match every building's outside;
 - new weapon types, and arrows that can fell bandits as well as game;
 - supply chains the townsfolk run themselves (fields to mill to bakery to market), with prices that rise and fall.
 
