@@ -362,6 +362,7 @@
     <div class="field">
       <label for="s-music">Music volume <output id="o-music">80%</output></label>
       <input type="range" id="s-music" min="0" max="1" step="0.01" value="0.8">
+      <div class="stats" id="music-now">Music is off.</div>
     </div>
     <div class="field">
       <label for="s-cloud">Cloud cover <output id="o-cloud">42%</output></label>
@@ -4649,6 +4650,7 @@ $('b-music').addEventListener('click', () => {
   audioResumeState();
   $('b-music').setAttribute('aria-pressed', music.on);
   toast(music.on ? 'Music on' : 'Music off');
+  showNowPlaying();
 });
 $('s-music').addEventListener('input', (e) => { music.vol = +e.target.value; if (music.master) music.master.gain.value = music.vol; $('o-music').textContent = Math.round(music.vol * 100) + '%'; });
 $('b-sound').addEventListener('click', () => {
@@ -10995,25 +10997,284 @@ const PIECES = [
     chord(c) { choir([c.tri[0], c.tri[1] + 12, c.tri[2]], c.t, c.dur, 0.02); drone([c.tri[0] - 12], c.t, c.dur, 0.02); },
     step(c) { if (c.s % 4 === 0) taiko(c.t, 0.4); if (c.s % 8 === 6) taiko(c.t, 0.2); if (c.s % 2 === 1) fiddle(c.tri[0] + 13, c.t, c.beat * 0.3, 0.015); } },
 ];
-music.piece = null; music.pieceLeft = 0; music.rest = 0; music.cul = 'temperate';
+// the hand-written pieces also serve moods beyond their first
+const HAND_MOODS = { Highland: ['explore', 'peaks'], Pastoral: ['explore', 'safe'], Adventure: ['explore', 'peaks'], Frost: ['explore', 'peaks'], Isles: ['explore', 'sea'],
+  'Long Road': ['explore', 'sea'], 'Market Day': ['town'], Jig: ['town', 'festival', 'tavern'], Bazaar: ['town', 'festival'], 'Palm Wine': ['town', 'festival', 'tavern'],
+  Lullaby: ['night', 'safe', 'indoors'], Moonlit: ['night'], Starfield: ['night', 'peaks'], Dread: ['combat', 'battle'] };
+for (const P of PIECES) P.moods = HAND_MOODS[P.n] || [P.mood];
+
+/* ---------- more voices: heartbeats, tremolo strings, glass, bells, organ, bowed strings, whispers ---------- */
+function heartbeat(t, v) { drum(t, v, 62, 36, 0.28); drum(t + 0.2, v * 0.65, 58, 34, 0.3); }
+function snare(t, vol) {
+  const ctx = audio.ctx, n = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+  n.buffer = music.noise; f.type = 'bandpass'; f.frequency.value = 1800; f.Q.value = 0.8;
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+  n.connect(f); f.connect(g); out(g, 0.4); n.start(t, Math.random() * 0.5); n.stop(t + 0.18);
+}
+function tremolo(m, t, dur, vol) {
+  const ctx = audio.ctx, f = ctx.createBiquadFilter(), g = envGain(t, 0.25, dur, vol, 0.6), tg = ctx.createGain(), l = ctx.createOscillator(), lg = ctx.createGain();
+  f.type = 'lowpass'; f.frequency.value = 1600; tg.gain.value = 0.55; l.frequency.value = 9 + Math.random() * 3; lg.gain.value = 0.45;
+  l.connect(lg); lg.connect(tg.gain); f.connect(tg); tg.connect(g); out(g, 0.6);
+  for (const d of [-7, 6]) osc('sawtooth', mtof(m), t, t + dur + 0.7, f, d);
+  l.start(t); l.stop(t + dur + 0.7);
+}
+// two sines a few hertz apart, beating slowly: a wet finger round a glass rim
+function glass(m, t, dur, vol) {
+  const g = envGain(t, 0.9, dur, vol, 3); out(g);
+  osc('sine', mtof(m), t, t + dur + 3.2, g); osc('sine', mtof(m) + 2.5, t, t + dur + 3.2, g);
+  const g2 = envGain(t, 1.2, dur, vol * 0.3, 3); out(g2); osc('sine', mtof(m + 19), t, t + dur + 3.2, g2);
+}
+function bell(m, t, vol, decay = 3.5) {
+  const f0 = mtof(m);
+  [[1, 1], [2, 0.5], [2.4, 0.35], [3, 0.25], [4.2, 0.15]].forEach(([k, a], i) => { const g = envGain(t, 0.004, 0.01, vol * a, decay / (1 + i * 0.6)); out(g, 0.9); osc('sine', f0 * k, t, t + decay + 0.1, g); });
+}
+function organ(notes, t, dur, vol) {
+  const g = envGain(t, 0.35, dur, vol, 1.2); out(g);
+  for (const m of notes) { osc('sine', mtof(m), t, t + dur + 1.4, g); osc('sine', mtof(m + 12), t, t + dur + 1.4, g); osc('triangle', mtof(m + 19), t, t + dur + 1.4, g, 3); }
+}
+function bowed(notes, t, dur, vol, cut = 1800) {
+  const f = audio.ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = cut; f.Q.value = 0.7;
+  const g = envGain(t, 0.9, dur, vol, 1.6); f.connect(g); out(g);
+  for (const m of notes) for (const d of [-9, 0, 9]) osc('sawtooth', mtof(m), t, t + dur + 1.8, f, d);
+}
+function whisper(t, dur, vol) {
+  const ctx = audio.ctx, n = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = envGain(t, dur * 0.4, dur * 0.5, vol, dur * 0.6);
+  n.buffer = music.noise; n.loop = true; f.type = 'bandpass'; f.Q.value = 9;
+  f.frequency.setValueAtTime(300 + Math.random() * 300, t); f.frequency.exponentialRampToValueAtTime(900 + Math.random() * 1400, t + dur);
+  n.connect(f); f.connect(g); out(g); n.start(t, Math.random() * 0.5); n.stop(t + dur * 1.2);
+}
+
+/* ---------- the composer: parts a piece is built from ---------- */
+// each part may play at the top of a chord (c) and/or on every half-beat step (s)
+const PART = {
+  bed: {
+    none: {},
+    pad: { c: c => pad([c.tri[0], c.tri[2], c.tri[0] + 12, c.tri[1] + 12], c.t, c.dur, 0.014 + c.e * 0.006, c.P.cut + c.e * 600) },
+    thin: { c: c => pad([c.tri[0], c.tri[1] + 12], c.t, c.dur, 0.009, c.P.cut) },
+    dark: { c: c => pad([c.tri[0] - 12, c.tri[2] - 12, c.tri[0]], c.t, c.dur, 0.016, 380) },
+    choir: { c: c => choir([c.tri[0] + 12, c.tri[1] + 12, c.tri[2] + 12], c.t, c.dur, 0.013) },
+    lowChoir: { c: c => choir([c.tri[0], c.tri[2]], c.t, c.dur, 0.016) },
+    drone: { c: c => { if (c.chord === 0) drone([c.P.root - 12, c.P.root - 5], c.t, c.dur * 4, 0.018); } },
+    cluster: { c: c => pad([c.tri[0] - 12, c.tri[0] - 11, c.tri[2] - 12], c.t, c.dur, 0.013, 420) },
+    strings: { c: c => bowed([c.tri[0], c.tri[1], c.tri[2]], c.t, c.dur, 0.007, c.P.cut + 600) },
+    organ: { c: c => organ([c.tri[0], c.tri[1], c.tri[2]], c.t, c.dur, 0.005) },
+    glass: { c: c => glass(c.tri[c.chord % 3] + 12, c.t, c.dur, 0.018) },
+  },
+  bass: {
+    none: {},
+    long: { c: c => bassNote(c.tri[0] - 12, c.t, c.dur, 0.08) },
+    soft: { c: c => bassNote(c.tri[0] - 12, c.t, c.dur * 0.8, 0.055) },
+    deep: { c: c => bassNote(c.tri[0] - 24, c.t, c.dur, 0.1) },
+    walk: { s: c => { if (c.s % 4 === 0) pluck(c.tri[[0, 2, 0, 1][c.s / 4]] - 12, c.t, 0.07, 0.5); } },
+    pulse: { s: c => { if (c.s % 4 === 0) bassNote(c.tri[0] - 12, c.t, c.beat * 1.2, 0.07); } },
+  },
+  rhy: {
+    none: {},
+    soft: { s: c => { if (c.s % 8 === 0) drum(c.t, 0.14 + c.e * 0.15, 70, 42, 1.4); } },
+    heart: { s: c => { if (c.s % 8 === 0) heartbeat(c.t, 0.22); } },
+    toll: { s: c => { if (c.s === 0 && c.chord % 2 === 0) bell(c.P.root - 12, c.t, 0.05); } },
+    march: { s: c => { if (c.s % 4 === 0) drum(c.t, c.s % 8 === 0 ? 0.3 : 0.2, 90, 45, 0.4); if (c.P.rp[c.s]) snare(c.t, 0.05 + (c.s % 4 === 2 ? 0.04 : 0)); } },
+    taiko: { s: c => { if (c.P.rp[c.s]) taiko(c.t, c.s % 4 === 0 ? 0.36 : 0.2); } },
+    war: { s: c => { if (c.P.rp[c.s]) taiko(c.t, c.s % 4 === 0 ? 0.42 : 0.24); if (c.s % 2) snare(c.t, 0.035); } },
+    frame: { s: c => { if (c.P.rp[c.s]) frameDrum(c.t, c.s % 8 === 0 ? 0.2 : 0.1, c.s % 4 === 0); } },
+    bodhran: { s: c => { if (c.P.rp[c.s]) bodhran(c.t, c.s % 4 === 0 ? 0.2 : 0.1); } },
+    shaker: { s: c => { if (c.s % 2) shaker(c.t, 0.04); if (c.s % 8 === 0) drum(c.t, 0.12, 80, 45, 0.5); } },
+    roll: { s: c => { if (c.s === 0) drum(c.t, 0.35, 60, 35, 1.8); if (c.chord % 2 === 1 && c.s >= 10) drum(c.t, 0.05 + (c.s - 10) * 0.03, 75, 45, 0.5); } },
+    knock: { s: c => { if (c.P.rp[c.s] && Math.random() < 0.6) drum(c.t, 0.07, 260, 180, 0.07); } },
+  },
+  acc: {
+    none: {},
+    arp: { s: c => { if (c.s % 2 === 0) { const k = c.P.ap[(c.s / 2) % 8]; pluck(c.tri[k % 3] + (k > 2 ? 24 : 12), c.t, 0.045, 1.4); } } },
+    harp: { s: c => { if (c.s < 6) pluck(c.tri[c.s % 3] + 12 * (1 + (c.s / 3 | 0)), c.t + (c.s % 3) * 0.03, 0.04, 2.4); } },
+    marimba: { s: c => { if (c.P.rp2[c.s]) marimba(c.tri[c.P.ap[c.s % 8] % 3] + 12, c.t, 0.06); } },
+    box: { s: c => { if (Math.random() < c.P.sp) musicbox(pickOne(c.tri), c.t, 0.03); } },
+    glassy: { s: c => { if (c.s % 8 === 4 && Math.random() < 0.4) glass(c.tri[(Math.random() * 3) | 0] + 24 + (Math.random() < 0.3 ? 1 : 0), c.t, c.beat * 2, 0.012); } },
+    trem: { c: c => tremolo(c.tri[0], c.t, c.dur * 0.95, 0.012) },
+    ostinato: { s: c => { if (c.s % 2 === 0) pluck(c.tri[0] - (c.P.ap[(c.s / 2) % 8] % 2 ? 0 : 12) + (c.s % 8 === 6 ? 1 : 0), c.t, 0.05, 0.35); } },
+    oud: { s: c => { if (c.P.rp2[c.s]) oud(c.tri[c.P.ap[c.s % 8] % 3], c.t, 0.05); } },
+    strum: { s: c => { if (c.P.rp2[c.s]) c.tri.forEach((m, i) => pluck(m + 12, c.t + i * 0.018, 0.03, 0.7)); } },
+    bells: { s: c => { if (c.s % 4 === 0 && Math.random() < 0.5) bell(c.tri[c.P.ap[c.s % 8] % 3] + 12, c.t, 0.02, 2.5); } },
+  },
+  lead: {
+    none: null,
+    horn: (m, t, d, c) => horn(m, t, d, 0.05 + c.e * 0.02),
+    flute: (m, t, d) => flute(m + 12, t, d, 0.045),
+    fiddle: (m, t, d) => fiddle(m + 12, t, d, 0.032),
+    lowFiddle: (m, t, d) => fiddle(m, t, d, 0.03),
+    pluck: (m, t) => pluck(m + 12, t, 0.075, 1.4),
+    box: (m, t) => musicbox(m, t, 0.045),
+    oud: (m, t) => oud(m + 12, t, 0.08),
+    marimba: (m, t) => marimba(m + 12, t, 0.08),
+    bell: (m, t) => bell(m + 12, t, 0.03, 2.5),
+    glass: (m, t, d) => glass(m + 12, t, d, 0.02),
+  },
+};
+const SCALES = { maj: [0, 2, 4, 5, 7, 9, 11], min: [0, 2, 3, 5, 7, 8, 10], dor: [0, 2, 3, 5, 7, 9, 10], mix: [0, 2, 4, 5, 7, 9, 10], phr: [0, 1, 3, 5, 7, 8, 10],
+  lyd: [0, 2, 4, 6, 7, 9, 11], harm: [0, 2, 3, 5, 7, 8, 11], phrd: [0, 1, 4, 5, 7, 8, 10], loc: [0, 1, 3, 5, 6, 8, 10], pent: [0, 2, 4, 7, 9, 12, 14],
+  mpent: [0, 3, 5, 7, 10, 12, 15], whole: [0, 2, 4, 6, 8, 10, 12] };
+// rhythm cells for a melody, 16 half-beats to a chord
+const RH_BUSY = [[0, 2, 4, 6, 8, 12], [0, 3, 6, 8, 10, 12, 14], [0, 2, 4, 8, 10, 12], [0, 4, 6, 8, 12, 14], [0, 1, 2, 4, 8, 12]];
+const RH_MID = [[0, 4, 8, 12], [0, 6, 8, 12], [0, 8], [0, 4, 6, 8, 12], [0, 3, 4, 8]];
+const RH_SLOW = [[0, 8], [0], [0, 6, 8], [0, 12], [0, 4, 8]];
+const RH_SPARSE = [[0], [4], [0, 12], [8], [0, 3]];
+const PROGS = {
+  bright: [[0, 4, 5, 3], [0, 3, 4, 0], [0, 5, 3, 4], [3, 4, 0, 0], [0, 3, 0, 4], [0, 1, 3, 4]],
+  modal: [[0, 6, 3, 4], [0, 3, 6, 4], [0, 5, 2, 6], [0, 3, 5, 4], [5, 3, 0, 6], [0, 6, 5, 6]],
+  dark: [[0, 1, 0, 6], [0, 5, 1, 0], [0, 4, 1, 0], [0, 6, 5, 4], [0, 1, 5, 0], [0, 3, 1, 0]],
+  still: [[0, 5, 0, 5], [0, 3, 0, 3], [0, 0, 5, 6], [0, 1, 0, 1], [0, 4, 0, 6]],
+};
+// how each mood sounds: how many pieces to write for it, and what they may be made of
+const STYLE = {
+  explore: { n: 11, bpm: [60, 96], root: [48, 55], sc: ['dor', 'mix', 'maj', 'min', 'lyd'], prog: PROGS.modal.concat(PROGS.bright), bed: ['pad', 'thin', 'strings', 'choir'], bass: ['long', 'soft'], rhy: ['soft', 'none', 'shaker'], acc: ['arp', 'harp', 'none', 'strum'], lead: ['horn', 'flute', 'fiddle', 'pluck'], rh: RH_MID, dens: 0.8,
+    words: [['Green', 'Wide', 'Far', 'Wandering', 'Open', 'Golden', 'Windward', 'Rolling', 'Old', 'Morning'], ['Road', 'Hills', 'Vale', 'Meadow', 'Horizon', 'Fields', 'Ridge', 'Heath', 'Brook', 'Trail']] },
+  peaks: { n: 5, bpm: [56, 80], root: [45, 52], sc: ['dor', 'lyd', 'mix'], prog: PROGS.modal, bed: ['choir', 'strings', 'pad'], bass: ['long', 'deep'], rhy: ['taiko', 'soft', 'roll'], acc: ['harp', 'arp'], lead: ['horn'], rh: RH_MID, dens: 0.9,
+    words: [['High', 'Cold', 'Lonely', "Eagle's", 'Grey', 'Crowned'], ['Summit', 'Pass', 'Crag', 'Heights', 'Spire', 'Cairn']] },
+  night: { n: 7, bpm: [44, 60], root: [48, 55], sc: ['min', 'dor', 'maj', 'lyd'], prog: PROGS.still.concat(PROGS.modal), bed: ['thin', 'glass', 'dark'], bass: ['soft', 'none'], rhy: ['none'], acc: ['box', 'harp', 'none'], lead: ['flute', 'box', 'pluck'], rh: RH_SLOW, dens: 0.6,
+    words: [['Quiet', 'Starlit', 'Late', 'Silver', 'Drowsy', 'Blue'], ['Hours', 'Moon', 'Embers', 'Lanterns', 'Owl', 'Dreams']] },
+  town: { n: 8, bpm: [84, 112], root: [50, 57], sc: ['maj', 'mix', 'dor'], prog: PROGS.bright, bed: ['thin', 'none', 'pad'], bass: ['soft', 'walk'], rhy: ['shaker', 'bodhran', 'frame'], acc: ['arp', 'strum', 'marimba'], lead: ['pluck', 'fiddle', 'flute'], rh: RH_BUSY, dens: 0.85,
+    words: [['Busy', 'Cobbled', 'Merry', 'Crowded', 'Market', 'Bright'], ['Square', 'Lane', 'Stalls', 'Well', 'Crossing', 'Bells']] },
+  safe: { n: 8, bpm: [62, 84], root: [50, 57], sc: ['maj', 'lyd', 'mix'], prog: PROGS.bright, bed: ['thin', 'strings', 'pad'], bass: ['soft'], rhy: ['none', 'soft'], acc: ['harp', 'arp', 'box'], lead: ['flute', 'pluck', 'box'], rh: RH_MID, dens: 0.75,
+    words: [['Warm', 'Gentle', 'Kind', 'Homely', 'Peaceful', 'Honeyed'], ['Hearth', 'Walls', 'Welcome', 'Gardens', 'Afternoon', 'Harbour']] },
+  festival: { n: 6, bpm: [116, 140], root: [50, 57], sc: ['maj', 'mix', 'dor'], prog: PROGS.bright, bed: ['none'], bass: ['walk'], rhy: ['bodhran', 'frame', 'shaker'], acc: ['strum', 'arp'], lead: ['fiddle', 'flute'], rh: RH_BUSY, dens: 1,
+    words: [['Midsummer', 'Harvest', 'Wild', 'Whirling', 'Ribboned', 'Bonfire'], ['Reel', 'Dance', 'Revel', 'Round', 'Fling', 'Feast']] },
+  tavern: { n: 6, bpm: [92, 124], root: [48, 55], sc: ['dor', 'mix', 'maj', 'min'], prog: PROGS.modal.concat(PROGS.bright), bed: ['none', 'thin'], bass: ['walk', 'pulse'], rhy: ['bodhran', 'knock', 'none'], acc: ['strum', 'arp'], lead: ['fiddle', 'pluck', 'flute'], rh: RH_BUSY, dens: 0.9,
+    words: [['Foaming', 'Crooked', 'Last', 'Rowdy', 'Sticky', 'Brass'], ['Tankard', 'Stool', 'Barrel', 'Ballad', 'Toast', 'Fiddler']] },
+  indoors: { n: 5, bpm: [56, 76], root: [50, 57], sc: ['maj', 'lyd', 'dor'], prog: PROGS.bright.concat(PROGS.still), bed: ['thin', 'none'], bass: ['soft', 'none'], rhy: ['none'], acc: ['harp', 'box', 'arp'], lead: ['pluck', 'box', 'flute'], rh: RH_SLOW, dens: 0.7,
+    words: [['Candlelit', 'Small', 'Quiet', 'Worn', 'Patient', 'Tallow'], ['Room', 'Rafters', 'Table', 'Window', 'Loom', 'Shelf']] },
+  holy: { n: 4, bpm: [48, 62], root: [48, 55], sc: ['maj', 'dor', 'lyd'], prog: PROGS.bright.concat(PROGS.still), bed: ['organ', 'choir'], bass: ['long'], rhy: ['toll', 'none'], acc: ['none', 'bells'], lead: ['none', 'bell', 'flute'], rh: RH_SLOW, dens: 0.6,
+    words: [['Holy', 'Silent', 'Ancient', 'Radiant', 'Solemn', 'Evening'], ['Vespers', 'Hymn', 'Nave', 'Chant', 'Offering', 'Prayer']] },
+  tense: { n: 7, bpm: [76, 100], root: [45, 50], sc: ['min', 'phr', 'harm', 'dor'], prog: PROGS.dark.concat(PROGS.still), bed: ['dark', 'cluster', 'drone', 'strings'], bass: ['deep', 'none', 'pulse'], rhy: ['heart', 'knock', 'none'], acc: ['ostinato', 'trem', 'none'], lead: ['lowFiddle', 'pluck', 'none'], rh: RH_SPARSE, dens: 0.5,
+    words: [['Watchful', 'Cold', 'Narrow', 'Whispered', 'Sidelong', 'Hushed'], ['Stares', 'Welcome', 'Alley', 'Shutters', 'Suspicion', 'Doorways']] },
+  hostile: { n: 5, bpm: [84, 108], root: [43, 48], sc: ['phr', 'harm', 'loc'], prog: PROGS.dark, bed: ['cluster', 'lowChoir', 'dark'], bass: ['deep', 'pulse'], rhy: ['heart', 'march', 'taiko'], acc: ['ostinato', 'trem'], lead: ['horn', 'lowFiddle', 'none'], rh: RH_SPARSE, dens: 0.6,
+    words: [['Iron', 'Barred', 'Bitter', 'Hanging', 'Burning', 'Black'], ['Gate', 'Verdict', 'Mob', 'Noose', 'Bounty', 'Torches']] },
+  eerie: { n: 9, bpm: [40, 58], root: [43, 50], sc: ['loc', 'phr', 'whole', 'harm'], prog: PROGS.dark.concat(PROGS.still), bed: ['cluster', 'glass', 'dark', 'drone'], bass: ['none', 'deep'], rhy: ['none', 'knock', 'heart'], acc: ['glassy', 'box', 'none'], lead: ['box', 'glass', 'flute', 'none'], rh: RH_SPARSE, dens: 0.4, whisper: true,
+    words: [['Hollow', 'Crooked', 'Drowned', 'Pale', 'Whispering', 'Thornbound', 'Nameless', 'Rotting'], ['Wood', 'Pines', 'Barrow', 'Thicket', 'Roots', 'Mire', 'Deep', 'Glade']] },
+  cave: { n: 5, bpm: [40, 54], root: [40, 47], sc: ['phr', 'min', 'loc'], prog: PROGS.still.concat(PROGS.dark), bed: ['drone', 'dark', 'glass'], bass: ['deep', 'none'], rhy: ['none', 'knock'], acc: ['box', 'glassy'], lead: ['box', 'glass', 'none'], rh: RH_SPARSE, dens: 0.35, whisper: true,
+    words: [['Dripping', 'Buried', 'Blind', 'Endless', 'Echoing'], ['Dark', 'Vault', 'Gallery', 'Tunnels', 'Stone']] },
+  storm: { n: 4, bpm: [66, 88], root: [43, 50], sc: ['min', 'harm', 'phr'], prog: PROGS.dark.concat(PROGS.modal), bed: ['lowChoir', 'strings', 'dark'], bass: ['deep'], rhy: ['roll', 'taiko'], acc: ['trem', 'ostinato'], lead: ['horn', 'fiddle'], rh: RH_MID, dens: 0.8,
+    words: [['Rising', 'Howling', 'Breaking', 'Iron-grey', 'Thundering'], ['Squall', 'Tempest', 'Gale', 'Sky', 'Downpour']] },
+  sea: { n: 5, bpm: [60, 84], root: [48, 55], sc: ['dor', 'mix', 'min'], prog: PROGS.modal, bed: ['pad', 'strings', 'choir'], bass: ['long'], rhy: ['soft', 'none'], acc: ['harp', 'arp'], lead: ['flute', 'fiddle', 'horn'], rh: RH_MID, dens: 0.8,
+    words: [['Salt', 'Wide', 'Rolling', 'Sounding', 'Far-off'], ['Swell', 'Tide', 'Current', 'Shore', 'Wake']] },
+  combat: { n: 7, bpm: [118, 144], root: [45, 52], sc: ['min', 'phr', 'harm', 'dor'], prog: PROGS.dark.concat(PROGS.modal), bed: ['pad', 'lowChoir', 'strings'], bass: ['long', 'deep', 'pulse'], rhy: ['taiko', 'war', 'march'], acc: ['ostinato', 'trem'], lead: ['horn', 'fiddle'], rh: RH_BUSY, dens: 0.9,
+    words: [['Crossed', 'Red', 'Clashing', 'Sudden', 'Bared'], ['Steel', 'Blades', 'Fury', 'Fray', 'Onslaught']] },
+  battle: { n: 4, bpm: [132, 152], root: [43, 48], sc: ['phr', 'harm', 'loc'], prog: PROGS.dark, bed: ['lowChoir', 'cluster'], bass: ['deep'], rhy: ['war'], acc: ['ostinato', 'trem'], lead: ['horn'], rh: RH_BUSY, dens: 1,
+    words: [['Last', 'Bloody', 'Desperate', 'Final', 'Broken'], ['Stand', 'Breath', 'Hour', 'Line', 'Shield']] },
+  sorrow: { n: 3, bpm: [44, 56], root: [45, 52], sc: ['min', 'dor'], prog: PROGS.modal, bed: ['strings', 'choir'], bass: ['soft'], rhy: ['none', 'toll'], acc: ['harp', 'none'], lead: ['fiddle', 'flute'], rh: RH_SLOW, dens: 0.8,
+    words: [['Fallen', 'Grey', 'Long'], ['Farewell', 'Lament', 'Silence']] },
+};
+// regional colour: some pieces belong to one people and sound like it
+const FLAVOR = {
+  desert: { sc: ['phrd', 'harm', 'phr'], lead: ['oud'], acc: ['oud'], rhy: ['frame'], bed: ['drone'] },
+  tropic: { sc: ['pent', 'maj', 'mix'], lead: ['marimba', 'flute'], acc: ['marimba'], rhy: ['shaker', 'frame'] },
+  north: { sc: ['dor', 'min', 'mpent'], lead: ['horn', 'fiddle'], bed: ['drone', 'choir'], rhy: ['bodhran', 'soft'] },
+};
+const FLAVORED = new Set(['explore', 'town', 'safe', 'festival', 'tavern', 'night', 'peaks', 'sea']);
+const ALL_CUL = ['temperate', 'north', 'desert', 'tropic'];
+// a melody the piece keeps coming back to: two cells, the first repeated as a sequence, then a cadence
+function makeMotif(P, prog, r) {
+  const RH = P.rh, pick = a => a[Math.floor(r() * a.length)], cells = [pick(RH), pick(RH)], out = [];
+  const tones = c => [7, 9, 11, 14].map(o => prog[c] + o);
+  let rel0 = null, prev = prog[0] + 7;
+  for (let c = 0; c < 4; c++) {
+    const rh = c === 3 ? pick([[0], [0, 8], [0, 4, 8]]) : cells[c === 2 ? 0 : c], rel = [];
+    for (let i = 0; i < rh.length; i++) {
+      let deg;
+      if (c === 2 && rel0 && i < rel0.length) deg = prog[2] + rel0[i];
+      else if (c === 3 && i === rh.length - 1) deg = prog[3] + 7;
+      else { const T = tones(c); deg = r() < 0.6 ? T.reduce((b, x) => Math.abs(x - prev) < Math.abs(b - prev) ? x : b) + (r() < 0.3 ? (r() < 0.5 ? 1 : -1) : 0) : pick(T); }
+      rel.push(deg - prog[c]); prev = deg;
+      const end = i + 1 < rh.length ? rh[i + 1] : 16;
+      out.push({ at: c * 16 + rh[i], len: end - rh[i], m: degNote(P, deg) });
+    }
+    if (c === 0) rel0 = rel;
+  }
+  return out;
+}
+function composePiece(mood, S, r, n) {
+  const pick = a => a[Math.floor(r() * a.length)];
+  const fl = FLAVORED.has(mood) && r() < 0.4 ? pick(['desert', 'tropic', 'north']) : null, F = fl ? FLAVOR[fl] : {};
+  const from = k => (F[k] && r() < 0.7 ? pick(F[k]) : pick(S[k]));
+  const mask = d => Array.from({ length: 16 }, (_, i) => i % 8 === 0 || (i % 2 === 0 ? r() < d : r() < d * 0.4));
+  const P = {
+    n, gen: true, moods: [mood], cul: fl ? [fl] : ALL_CUL,
+    bpm: Math.round(S.bpm[0] + r() * (S.bpm[1] - S.bpm[0])), root: S.root[0] + Math.floor(r() * (S.root[1] - S.root[0] + 1)), scale: SCALES[from('sc')],
+    prog: [pick(S.prog), pick(S.prog)], cut: 600 + Math.floor(r() * 900), rh: S.rh, dens: S.dens, sp: 0.06 + r() * 0.1, whisper: !!S.whisper,
+    rp: mask(0.35 + r() * 0.4), rp2: mask(0.3 + r() * 0.5), ap: Array.from({ length: 8 }, () => Math.floor(r() * 5)),
+  };
+  P.parts = [PART.bed[from('bed')], PART.bass[pick(S.bass)], PART.rhy[from('rhy')], PART.acc[from('acc')]];
+  P.leadFn = PART.lead[from('lead')];
+  P.lo = mood === 'tense' || mood === 'hostile' || mood === 'cave' ? -12 : 0;
+  P.motifs = P.prog.map(pr => makeMotif(P, pr, r));
+  P.chord = function (c) { for (const k of this.parts) if (k.c) k.c(c); if (this.whisper && Math.random() < 0.3) whisper(c.t + Math.random() * c.dur * 0.5, c.dur, 0.02); };
+  P.step = function (c) {
+    for (const k of this.parts) if (k.s) k.s(c);
+    if (c.ph && this.leadFn) for (const nt of c.ph) if (nt.at === c.gs) this.leadFn(nt.m + this.lo, c.t, nt.len * c.beat / 2 * 0.92, c);
+  };
+  return P;
+}
+// the repertoire is the same every time: composed from a fixed seed
+(() => {
+  const r = G.mkRng(0x6d757369), shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  for (const mood in STYLE) {
+    // titles walk both word lists in shuffled order, so no word repeats until the list runs out
+    const S = STYLE[mood], A = shuffle(S.words[0]), N = shuffle(S.words[1]);
+    for (let i = 0; i < S.n; i++) PIECES.push(composePiece(mood, S, r, (r() < 0.3 ? 'The ' : '') + A[i % A.length] + ' ' + N[(i + Math.floor(i / N.length)) % N.length]));
+  }
+})();
+const MOOD_LABEL = { explore: 'Wandering', peaks: 'The heights', night: 'Night', town: 'Town bustle', safe: 'Safe within the walls', festival: 'Festival', tavern: 'Tavern',
+  indoors: 'Indoors', holy: 'Sanctuary', tense: 'Uneasy', hostile: 'Unwelcome', eerie: 'Deep woods', cave: 'Underground', storm: 'Storm', sea: 'At sea',
+  combat: 'Combat', battle: 'Desperate fight', sorrow: 'Fallen' };
+const RESTFUL = new Set(['explore', 'night', 'peaks', 'sea', 'eerie', 'cave', 'indoors']);
+music.piece = null; music.pieceLeft = 0; music.rest = 0; music.cul = 'temperate'; music.hurt = 0;
 function choosePiece(mood) {
-  const L = PIECES.filter(P => P.mood === mood && P.cul.includes(music.cul) && (!P.night || sunDir.y < 0) && (!P.epic || music.epic > 0.3 || mood !== 'explore'));
-  const pool = L.length ? L : PIECES.filter(P => P.mood === mood);
-  const cands = pool.filter(P => P !== music.piece);
-  return pickOne(cands.length ? cands : pool);
+  const ms = mood.split('+'), fits = P => P.moods.some(m => ms.includes(m));
+  const L = PIECES.filter(P => fits(P) && P.cul.includes(music.cul) && (!P.night || sunDir.y < 0) && (!P.epic || music.epic > 0.3));
+  const pool = L.length ? L : PIECES.filter(fits);
+  // avoid the last few pieces heard, if the mood has enough to choose from
+  const fresh = pool.filter(P => !music.recent.includes(P)), other = pool.filter(P => P !== music.piece);
+  const P = pickOne(fresh.length ? fresh : other.length ? other : pool);
+  music.recent.push(P); if (music.recent.length > 6) music.recent.shift();
+  return P;
+}
+music.recent = [];
+function showNowPlaying() {
+  const el = $('music-now'); if (!el) return;
+  const mood = MOOD_LABEL[music.mood.split('+')[0]] || music.mood;
+  el.textContent = music.on ? (music.piece ? `Now playing “${music.piece.n}” · ${mood}` : `A quiet stretch · ${mood}`) + ` · ${PIECES.length} pieces in the repertoire` : `Music is off · ${PIECES.length} pieces in the repertoire`;
+}
+// a fresh bus per mood, so a change of heart crossfades instead of cutting off mid-note
+function newMusicBus() {
+  const ctx = audio.ctx, t = ctx.currentTime, first = !music.busRoot;
+  if (first) { music.busRoot = music.bus; music.sendRoot = music.send; }
+  else {
+    const ob = music.bus, os = music.send;
+    for (const nd of [ob, os]) { nd.gain.cancelScheduledValues(t); nd.gain.setValueAtTime(nd.gain.value, t); nd.gain.linearRampToValueAtTime(0, t + 1.8); }
+    setTimeout(() => { ob.disconnect(); os.disconnect(); }, 3000);
+  }
+  music.bus = ctx.createGain(); music.bus.connect(music.busRoot);
+  music.send = ctx.createGain(); music.send.connect(music.sendRoot);
+  for (const nd of [music.bus, music.send]) { nd.gain.setValueAtTime(first ? 1 : 0.0001, t); nd.gain.linearRampToValueAtTime(1, t + 1.2); }
 }
 musicStep = function (t) {
+  if (!music.busRoot) newMusicBus();
   if (music.force) { music.force = false; music.step = 0; music.chord = 0; }
   if (music.step === 0 && music.chord === 0) {
     const moodChanged = music.pending !== music.mood;
     if (moodChanged) { music.mood = music.pending; music.piece = null; music.rest = 0; }
-    if (music.rest > 0) { music.rest--; }
+    if (music.rest > 0) music.rest--;
     else if (!music.piece || --music.pieceLeft <= 0) {
-      if (music.piece && !moodChanged && (music.mood === 'explore' || music.mood === 'night') && Math.random() < 0.35) { music.rest = 1 + Math.floor(Math.random() * 2); music.piece = null; }
+      if (music.piece && !moodChanged && RESTFUL.has(music.mood) && Math.random() < 0.3) { music.rest = 1 + Math.floor(Math.random() * 2); music.piece = null; }
       else { music.piece = choosePiece(music.mood); music.pieceLeft = 2 + Math.floor(Math.random() * 3); music.cycle = 0; }
+      showNowPlaying();
     }
     const P = music.piece;
-    if (P) { music.prog = P.prog[music.cycle % P.prog.length]; music.phrase = Math.random() < 0.8 ? makePhrase(P, music.prog) : null; music.cycle++; }
+    if (P) {
+      const pi = music.cycle % P.prog.length;
+      music.prog = P.prog[pi];
+      // generated pieces state their theme, and now and then wander off it
+      music.phrase = P.motifs ? (music.cycle % 4 === 3 ? (Math.random() < P.dens ? makeMotif(P, music.prog, Math.random) : null) : P.motifs[pi]) : Math.random() < 0.8 ? makePhrase(P, music.prog) : null;
+      music.cycle++;
+    }
   }
   const P = music.piece, bpm = P ? P.bpm : 60, beat = 60 / bpm;
   if (P) {
@@ -11022,9 +11283,85 @@ musicStep = function (t) {
     if (music.step === 0) { music.cur = tri; P.chord(c); }
     P.step(c);
   }
+  // badly hurt: your own heart under everything
+  if (music.hurt > 0 && music.step % 4 === 0) heartbeat(t, 0.12 + music.hurt * 0.2);
   music.step++;
   if (music.step >= 16) { music.step = 0; music.chord = (music.chord + 1) % 4; }
   music.bpmNow = bpm;
+};
+
+/* ---------- what the world feels like right now ---------- */
+let combatCalm = 0;
+music.woods = 0; music.wantKey = 'explore'; music.wantT = 0;
+function moodNow() {
+  const p = player.pos, q = eyePos(), near = (a, r) => Math.hypot(a.x - q.x, a.z - q.z) < r;
+  // fighting: how many are on you, and how you're holding up
+  let foes = activeAnimals().filter(a => !a.dead && a.state === 'chase' && near(a, 70)).length;
+  for (const a of peopleIter()) if ((a.fighting || (a.fightMode && a.hostile)) && !a.dead && near(a, 60)) foes++;
+  for (const a of encPeople()) if (a.fighting && !a.dead && near(a, 45)) foes++;
+  if (foes) combatCalm = 6; else combatCalm -= 0.5;
+  const hp = game.hp / maxHp(), inTown = curTown != null ? G.settlementById(curTown) : null;
+  music.hurt = game.dead ? 0 : clamp((0.3 - hp) / 0.3, 0, 1);
+  if (game.dead) return 'sorrow';
+  if (combatCalm > 0) return (foes >= 3 || hp < 0.35 || (inTown && wantedIn(inTown))) ? 'battle' : 'combat';
+  // indoors: what kind of roof, and whose
+  if (interior) {
+    if (interior.kind === 'cave') return 'cave';
+    const s = interior.s;
+    if (s && (wantedIn(s) || repOf(s) <= -50)) return 'hostile';
+    if (s && repOf(s) <= -15) return 'tense';
+    if (interior.kind === 'inn') return s && dayOf(s.culture).fest ? 'festival' : 'tavern';
+    if (/chapel|hall|dome|greathouse/.test(interior.kind)) return 'holy';
+    return 'indoors';
+  }
+  if (playerHouse) return 'indoors';
+  const w = weatherHere(p.x, p.z), stormy = w.storm || w.kind === 'blizzard';
+  if (player.boat) return stormy ? 'storm' : 'sea';
+  // in a town: how its people feel about you sets the tone
+  if (inTown) {
+    const rep = repOf(inTown), night = sunDir.y < -0.06, centre = Math.hypot(p.x - inTown.x, p.z - inTown.z) < inTown.r * 0.7;
+    if (wantedIn(inTown) || rep <= -50) return 'hostile';
+    if (rep <= -15) return 'tense';
+    if (dayOf(inTown.culture).fest) return 'festival';
+    if (night || (inTown.tier >= 2 && centre) || rep >= 50) return 'safe';
+    return rep >= 15 ? 'town+safe' : 'town';
+  }
+  // on the road near a town that wants your head
+  for (const { s, d } of settlementsNear(p.x, p.z, 3000)) if (d < s.r * 3 && (wantedIn(s) || repOf(s) <= -50)) return 'tense';
+  // something with teeth, or someone with a blade, close by and not yet at you
+  if (player.mode === 'walk') {
+    if (activeAnimals().some(a => !a.dead && a.def.type === 'predator' && near(a, 45))) return 'tense';
+    for (const a of encPeople()) if (!a.dead && (a.hostile || a.spec.hostile) && near(a, 90)) return 'tense';
+  }
+  if (stormy && env.agl < 200) return 'storm';
+  // deep woods: thick trees, no road, far from anyone
+  const o = G.sample(p.x, p.z, SA), s0 = settlementsNear(p.x, p.z, 2600)[0];
+  const wild = s0 ? ss(s0.s.r * 2, s0.s.r * 2 + 1200, s0.d) : 1, night = sunDir.y < -0.06;
+  music.woods += (env.forest - music.woods) * 0.15;
+  if (env.agl < 40 && o.road < 0.1 && wild > 0.6 && (music.woods > 0.6 || (night && music.woods > 0.35))) return 'eerie';
+  if (music.epic > 0.6) return 'peaks';
+  return night ? 'night' : 'explore';
+}
+updateMusicMood = function (dt) {
+  moodTimer -= dt;
+  if (moodTimer > 0) return;
+  moodTimer = 0.5;
+  const p = player.pos, o = G.sample(p.x, p.z, SA);
+  music.cul = G.cultureOf(o);
+  music.epic = clamp(Math.max(env.agl / 250, o.mtn * 1.2 - 0.2, (o.h - 300) / 900), 0, 1);
+  const want = moodNow(), fight = want === 'combat' || want === 'battle', wasFight = music.pending === 'combat' || music.pending === 'battle';
+  if (want === music.pending) { music.wantT = 0; return; }
+  // hold a new mood a moment before committing, so a step across a boundary doesn't flip the music
+  if (want !== music.wantKey) { music.wantKey = want; music.wantT = 0; }
+  music.wantT += 0.5;
+  const hold = fight || wasFight ? 0 : want === 'sorrow' ? 2.5 : want === 'tense' || want === 'hostile' ? 1.5 : 3;
+  if (music.wantT < hold) return;
+  music.pending = want; music.force = true; music.wantT = 0;
+  if (music.ready && audio.ctx) {
+    newMusicBus();
+    if (fight && !wasFight) musicStinger('combat');
+    else if (wasFight && !fight && want !== 'sorrow') musicStinger('calm');
+  }
 };
 musicTick = function () {
   if (!music.on || !audio.ctx || audio.ctx.state !== 'running') return;
@@ -11032,29 +11369,14 @@ musicTick = function () {
   if (music.next < now) music.next = now + 0.1;
   while (music.next < now + 0.4) { musicStep(music.next); music.next += 60 / (music.bpmNow || 60) / 2; }
 };
-let combatCalm = 0;
-updateMusicMood = function (dt) {
-  moodTimer -= dt;
-  if (moodTimer > 0) return;
-  moodTimer = 0.5;
-  const p = player.pos, q = eyePos();
-  let fight = activeAnimals().some(a => !a.dead && a.state === 'chase' && Math.hypot(a.x - q.x, a.z - q.z) < 70);
-  if (!fight) for (const a of peopleIter()) if ((a.fighting || (a.fightMode && a.hostile)) && !a.dead && Math.hypot(a.x - q.x, a.z - q.z) < 60) { fight = true; break; }
-  if (!fight) for (const a of encPeople()) if (a.fighting && !a.dead && Math.hypot(a.x - q.x, a.z - q.z) < 45) { fight = true; break; }
-  if (fight) combatCalm = 6; else combatCalm -= 0.5;
-  const want = combatCalm > 0 ? 'combat' : curTown ? 'town' : sunDir.y < -0.06 ? 'night' : 'explore';
-  if (want !== music.pending) {
-    music.pending = want;
-    if (want === 'combat' || music.mood === 'combat') { music.force = true; if (want === 'combat') musicStinger('combat'); }
-  }
-  const o = G.sample(p.x, p.z, SA);
-  music.cul = G.cultureOf(o);
-  music.epic = clamp(Math.max(env.agl / 250, o.mtn * 1.2 - 0.2, (o.h - 300) / 900), 0, 1);
-};
 const _stinger = musicStinger;
 musicStinger = function (kind) {
-  if (kind === 'combat') { if (!music.on || !music.ready || audio.ctx.state !== 'running') return; const t = audio.ctx.currentTime + 0.03; taiko(t, 0.5); taiko(t + 0.18, 0.35); horn(50, t, 0.5, 0.08); horn(57, t, 0.5, 0.06); horn(62, t + 0.02, 0.6, 0.06); return; }
-  _stinger(kind);
+  if (kind !== 'combat' && kind !== 'calm') return _stinger(kind);
+  if (!music.on || !music.ready || audio.ctx.state !== 'running') return;
+  const t = audio.ctx.currentTime + 0.03;
+  if (kind === 'combat') { taiko(t, 0.5); taiko(t + 0.18, 0.35); horn(50, t, 0.5, 0.08); horn(57, t, 0.5, 0.06); horn(62, t + 0.02, 0.6, 0.06); return; }
+  // the danger has passed: a breath out
+  choir([57, 62, 66], t, 2, 0.02); pluck(62, t + 0.1, 0.06, 2.5); pluck(69, t + 0.3, 0.05, 2.5);
 };
 
 /* ---------- soundscape: creatures, towns, fires and footsteps ---------- */
