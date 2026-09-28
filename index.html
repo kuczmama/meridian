@@ -113,6 +113,98 @@
   #death .sheet { width: min(460px, 100%); padding: 26px 24px; box-sizing: border-box; background: var(--glass-strong); display: flex; flex-direction: column; gap: 12px; }
   #death h2 { font: 800 34px var(--display); margin: 0; }
   #death p { margin: 0; color: #e2d6d0; line-height: 1.5; }
+  /* the casino tables */
+  #casino { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: 16px; box-sizing: border-box; background: rgba(5, 9, 10, 0.5); }
+  #casino .sheet { width: min(980px, 100%); max-height: 100%; overflow: auto; display: flex; flex-direction: column; gap: 12px; padding: 16px 18px; box-sizing: border-box; background: var(--glass-strong); }
+  #casino header { display: flex; align-items: flex-start; gap: 14px; flex-wrap: wrap; }
+  #casino header > div:first-child { margin-right: auto; min-width: 0; }
+  #casino h2 { font: 800 26px/1.05 var(--display); margin: 4px 0 0; }
+  #cs-limit { font: 11px var(--mono); color: var(--muted); }
+  .cs-purse { text-align: right; font: 600 16px var(--mono); color: var(--brass); font-variant-numeric: tabular-nums; }
+  .cs-purse small { display: block; font: 11px var(--mono); color: var(--muted); }
+  .cs-purse small.up { color: #8fd6a0; } .cs-purse small.down { color: #f0a08a; }
+  #cs-close kbd, .cs-btn kbd { display: inline-block; margin-left: 8px; padding: 1px 5px; border: 1px solid var(--line-strong); border-radius: 4px; font: 10px var(--mono); }
+  #cs-msg { margin: 0; min-height: 1.4em; font-size: 15px; line-height: 1.45; color: #e2e3da; }
+  #cs-msg.good { color: #9ee0a8; } #cs-msg.bad { color: #f0b0a0; }
+  #cs-body { display: flex; flex-direction: column; gap: 12px; }
+  .cs-row { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+  .cs-side { flex: 1 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+  .cs-wheel { width: min(260px, 70vw); height: auto; aspect-ratio: 1; flex: 0 0 auto; margin: 0 auto; filter: drop-shadow(0 6px 14px rgba(0, 0, 0, .5)); }
+  .cs-board { display: grid; grid-template-columns: 1.3fr repeat(12, 1fr) 1.4fr; grid-auto-rows: minmax(34px, auto); gap: 2px; padding: 8px; border-radius: 8px; background: #15583a; border: 5px solid #4a2a16; }
+  .cs-cell { position: relative; min-width: 0; padding: 0; border: 1px solid rgba(255, 255, 255, 0.35); border-radius: 3px; font: 700 13px var(--mono); color: #fff; background: transparent; }
+  .cs-cell.red span, .cs-cell.black span, .cs-cell.green span { display: inline-grid; place-items: center; min-width: 24px; height: 24px; border-radius: 50%; }
+  .cs-cell.red span { background: #a8141c; } .cs-cell.black span { background: #121212; } .cs-cell.green span { background: #0e7a38; }
+  .cs-cell.red[style*="span 2"] span, .cs-cell.black[style*="span 2"] span { border-radius: 4px; padding: 0 8px; }
+  .cs-cell.out { font: 600 12px var(--display); }
+  .cs-cell:hover { background: rgba(255, 255, 255, 0.12); }
+  .cs-cell.win { box-shadow: inset 0 0 0 2px var(--brass); background: rgba(224, 184, 114, 0.25); }
+  .cs-cell b, .cs-hand .cs-bet { position: absolute; top: -7px; right: -5px; z-index: 1; min-width: 14px; padding: 1px 4px; border-radius: 9px; background: var(--brass); color: #1a1208; font: 700 10px var(--mono); box-shadow: 0 1px 3px rgba(0, 0, 0, .5); }
+  .cs-hist { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+  .cs-dot { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; font: 700 11px/1 var(--mono); font-style: normal; color: #fff; }
+  .cs-dot.red { background: #a8141c; } .cs-dot.black { background: #121212; border: 1px solid var(--line-strong); } .cs-dot.green { background: #0e7a38; }
+  .cs-dot:first-of-type { box-shadow: 0 0 0 2px var(--brass); }
+  .cs-lbl { font: 11px var(--mono); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-right: 6px; }
+  .cs-note { font-size: 12.5px; line-height: 1.45; color: var(--muted); }
+  .cs-ctl { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .cs-ctl .solid { margin-left: auto; }
+  .cs-btn { border-color: var(--line-strong); }
+  .cs-btn.solid { background: var(--accent); color: var(--accent-ink); font-weight: 700; }
+  .cs-btn.solid:hover { background: #a8e3d4; }
+  .cs-btn:disabled, .cs-area:disabled, .cs-wbet:disabled { opacity: .4; cursor: default; }
+  .cs-stake { font: 12px var(--mono); color: var(--brass); min-width: 9em; }
+  .cs-chips { display: flex; gap: 6px; align-items: center; }
+  .cs-chip { width: 38px; height: 38px; padding: 0; border-radius: 50%; background: var(--c); border: 3px dashed rgba(255, 255, 255, 0.7); color: #fff; font: 700 11px var(--mono); text-shadow: 0 1px 2px #000; box-shadow: 0 2px 5px rgba(0, 0, 0, .5); }
+  .cs-chip[data-v="1"] { color: #1a1a1a; text-shadow: none; border-color: rgba(0, 0, 0, 0.35); }
+  .cs-chip:hover { background: var(--c); filter: brightness(1.15); }
+  .cs-chip[aria-pressed="true"] { background: var(--c); color: #fff; outline: 3px solid var(--brass); outline-offset: 2px; }
+  .cs-chip[data-v="1"][aria-pressed="true"] { color: #1a1a1a; }
+  .cs-felt { position: relative; display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 16px; border-radius: 14px; background: radial-gradient(ellipse at 50% 20%, #20704a, #0d3a22 80%); border: 7px solid #4a2a16; box-shadow: inset 0 0 40px rgba(0, 0, 0, .45); }
+  .cs-felt.east { background: radial-gradient(ellipse at 50% 20%, #e8e0cc, #c8bea4 80%); border-color: #3a2a1a; }
+  .cs-felt.east .cs-lbl { color: #4a3a28; }
+  .cs-felt > .cs-lbl { text-align: center; max-width: 60ch; line-height: 1.5; }
+  .cs-hands { display: flex; gap: 22px; flex-wrap: wrap; justify-content: center; }
+  .cs-hand { position: relative; display: flex; gap: 6px; align-items: center; min-height: 84px; padding: 6px 10px; border-radius: 10px; }
+  .cs-hand.cur { box-shadow: 0 0 0 2px var(--brass); }
+  .cs-val { margin-left: 6px; font: 700 14px var(--mono); color: #f4efe2; text-shadow: 0 1px 2px #000; }
+  .cs-card { position: relative; width: 52px; height: 74px; box-sizing: border-box; padding: 3px 5px; border-radius: 6px; background: linear-gradient(160deg, #fbf8f0, #e8e2d2); color: #181818; box-shadow: 0 2px 6px rgba(0, 0, 0, .45); display: flex; flex-direction: column; animation: csIn .22s ease-out; cursor: default; }
+  .cs-card b { font: 800 16px/1 var(--display); }
+  .cs-card span { font-size: 13px; line-height: 1; }
+  .cs-card i { position: absolute; right: 6px; bottom: 4px; font: normal 26px/1 serif; }
+  .cs-card.red { color: #b0141c; }
+  .cs-card.still { animation: none; }
+  .cs-card.back { background: repeating-linear-gradient(45deg, #7a1420 0 5px, #5a0e18 5px 10px); border: 3px solid #e8d8a8; }
+  .cs-hand.poker .cs-card { width: 64px; height: 90px; cursor: pointer; transition: transform .12s; }
+  .cs-hand.poker .cs-card.held { transform: translateY(-10px); box-shadow: 0 0 0 3px var(--brass), 0 6px 10px rgba(0, 0, 0, .5); }
+  .cs-card em { position: absolute; left: 0; right: 0; bottom: -20px; text-align: center; font: 700 10px var(--mono); font-style: normal; color: var(--brass); }
+  @keyframes csIn { from { transform: translateY(-14px) rotate(-5deg); opacity: 0; } }
+  .cs-pay { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px 18px; width: min(560px, 100%); font: 11.5px var(--mono); color: #d8e8d8; }
+  .cs-pay div { display: flex; justify-content: space-between; gap: 8px; padding: 1px 4px; border-radius: 3px; }
+  .cs-pay div.hit { background: var(--brass); color: #1a1208; }
+  .cs-pay b { color: var(--brass); } .cs-pay div.hit b { color: #1a1208; }
+  .cs-dice { display: flex; gap: 14px; min-height: 70px; align-items: center; }
+  .cs-dice.shake { animation: csShake .09s linear infinite; }
+  @keyframes csShake { 50% { transform: translate(2px, -3px) rotate(3deg); } }
+  .cs-die { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; width: 60px; height: 60px; padding: 8px; box-sizing: border-box; border-radius: 10px; background: linear-gradient(150deg, #fffdf6, #e2dccb); box-shadow: 0 3px 8px rgba(0, 0, 0, .5); }
+  .cs-die i { border-radius: 50%; }
+  .cs-die i.on { background: #1a1a1a; }
+  .cs-die:first-child i.on:only-of-type { background: #b0141c; }
+  .cs-cup { width: 90px; height: 70px; border-radius: 45px 45px 10px 10px; background: linear-gradient(160deg, #8a5a2a, #4a2a12); box-shadow: 0 4px 10px rgba(0, 0, 0, .5); }
+  .cs-point { font: 700 13px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--brass); }
+  .cs-areas { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: min(560px, 100%); }
+  .cs-area, .cs-wbet { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 14px 10px; border: 2px solid rgba(255, 255, 255, 0.45); border-radius: 8px; color: #fff; background: rgba(0, 0, 0, 0.12); }
+  .cs-areas.three { grid-template-columns: 1fr 0.8fr 1fr; }
+  .cs-area.win { box-shadow: 0 0 0 3px var(--brass); }
+  .cs-felt.east .cs-area { color: #2a1a0a; border-color: rgba(60, 30, 10, 0.5); }
+  .cs-area b, .cs-wbet b { font: 800 18px var(--display); }
+  .cs-area small, .cs-wbet small { font: 11px var(--mono); opacity: .85; }
+  .cs-area:hover, .cs-wbet:hover { background: rgba(255, 255, 255, 0.1); }
+  .cs-bigwheel { position: relative; flex: 0 0 auto; margin: 0 auto; }
+  .cs-bigwheel .cs-wheel { width: min(290px, 74vw); }
+  .cs-pointer { position: absolute; left: 50%; top: -6px; width: 0; height: 0; margin-left: -11px; border-left: 11px solid transparent; border-right: 11px solid transparent; border-top: 26px solid var(--brass); filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .6)); }
+  .cs-wbets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .cs-wbet { background: color-mix(in srgb, var(--c) 55%, transparent); }
+  .cs-wbet.win { box-shadow: 0 0 0 3px var(--brass); }
+  @media (max-width: 560px) { .cs-board { grid-auto-rows: minmax(30px, auto); padding: 4px; gap: 1px; } .cs-cell { font-size: 10px; } .cs-cell.red span, .cs-cell.black span, .cs-cell.green span { min-width: 18px; height: 18px; } .cs-card { width: 42px; height: 60px; } .cs-hand.poker .cs-card { width: 52px; height: 74px; } .cs-pay { grid-template-columns: 1fr 1fr; } }
   .eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
   .loc h1 { font: 800 29px/1.05 var(--display); letter-spacing: -0.01em; margin: 5px 0 11px; text-wrap: balance; }
   .readout { display: grid; grid-template-columns: 1fr 1fr; gap: 5px 14px; margin: 0; font-family: var(--mono); font-size: 12px; font-variant-numeric: tabular-nums; }
@@ -185,6 +277,14 @@
   .mlist .pin .acts { grid-row: 1 / span 2; grid-column: 3; display: flex; gap: 3px; }
   .mlist .pin .acts button { padding: 3px 6px; font-size: 11px; border-color: var(--line); }
   #bigmap aside { max-height: calc(100vh - 120px); overflow: auto; }
+  #bigcv { cursor: crosshair; touch-action: none; }
+  #pl-q { font: 13px var(--display); color: var(--text); background: rgba(255, 255, 255, 0.06); border: 1px solid var(--line-strong); border-radius: 7px; padding: 7px 10px; min-width: 0; }
+  .pl-cats { display: flex; flex-wrap: wrap; gap: 4px; }
+  .pl-cats button { display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; font-size: 11.5px; border-color: var(--line); border-radius: 12px; opacity: .5; }
+  .pl-cats button[aria-pressed="true"] { opacity: 1; border-color: var(--line-strong); background: rgba(255, 255, 255, 0.06); color: var(--text); }
+  .pl-cats i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+  .mlist.places { max-height: 30vh; }
+  .mlist .pin .d b { color: var(--text); font-weight: 500; }
   #pin-list .pin { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; gap: 4px 8px; align-items: center; padding: 6px 8px; border: 1px solid var(--line); border-radius: 7px; font-size: 12px; }
   #pin-list .pin.on { border-color: var(--accent); }
   #pin-list .pin .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -445,6 +545,7 @@
       <span class="sub" id="bm-range">24 km across</span>
       <button id="bm-in" class="btn-line" aria-label="Zoom in">+</button>
       <button id="bm-out" class="btn-line" aria-label="Zoom out">&minus;</button>
+      <button id="bm-me" class="btn-line">Centre on me</button>
       <button id="bm-close" class="btn-line">Close</button>
     </header>
     <div class="body">
@@ -453,7 +554,11 @@
         <div class="seg" role="group" aria-label="Map click action"><button id="bm-travel" aria-pressed="true">Travel</button><button id="bm-mark" aria-pressed="false">Mark</button></div>
         <div class="pin-types" id="pin-types"></div>
         <input id="pin-name" placeholder="Name (optional)" maxlength="40">
-        <div class="sub" id="bm-hint">Click to fly there. Right-click drops a marker.</div>
+        <div class="sub" id="bm-hint">Click to fly there, or click a building to go to its door. Right-click drops a marker. Scroll to zoom, drag to move the map.</div>
+        <div class="sub" style="text-transform:uppercase;letter-spacing:.07em">Places in town</div>
+        <input id="pl-q" type="search" placeholder="Find: casino, museum, inn, smith…" maxlength="40" autocomplete="off">
+        <div class="pl-cats" id="pl-cats"></div>
+        <div id="place-list" class="mlist places"></div>
         <div class="sub" style="text-transform:uppercase;letter-spacing:.07em">Quests: where to go</div>
         <div id="quest-list" class="mlist"></div>
         <div class="sub" style="text-transform:uppercase;letter-spacing:.07em">Places to explore</div>
@@ -491,6 +596,18 @@
       <button data-tab="satchel" role="tab">Satchel</button>
     </div>
     <div id="j-body"></div>
+  </div>
+</section>
+
+<section id="casino" hidden aria-label="Casino table">
+  <div class="sheet panel">
+    <header>
+      <div><div class="eyebrow" id="cs-house"></div><h2 id="cs-title"></h2><span id="cs-limit"></span></div>
+      <div class="cs-purse"><span id="cs-gold"></span><small id="cs-net"></small></div>
+      <button id="cs-close" class="btn-line">Leave the table<kbd>E</kbd></button>
+    </header>
+    <div id="cs-body"></div>
+    <p id="cs-msg" aria-live="polite"></p>
   </div>
 </section>
 
@@ -1267,7 +1384,7 @@ function WorldGen(seed) {
   // so the terrain painter can ask for it too.
   // a graveyard grows with its town: [width, depth, lot radius] by tier
   const CEM_SIZE = [[10, 7, 7], [15, 10, 10], [20, 13, 13], [25, 17, 16]];
-  const PLAN_LOT_R = { theatre: 17, college: 14, square: 15, mansion: 13, guildhall: 11, markethall: 12, arena: 21, museum: 10, grandmuseum: 15, eatery: 7, latrine: 3.5, gaminghouse: 8, placer: 14, watermill: 9, lumberyard: 11, house: 6.5, cemetery: 11, park: 11, castle: 19, cloister: 12, mine: 13, sawmill: 12, lodge: 10, barn: 9, bathhouse: 10, workshop: 7.5, cabana: 5,
+  const PLAN_LOT_R = { theatre: 17, college: 14, square: 15, mansion: 13, guildhall: 11, markethall: 12, arena: 21, museum: 10, grandmuseum: 15, casino: 15, eatery: 7, latrine: 3.5, gaminghouse: 8, placer: 14, watermill: 9, lumberyard: 11, house: 6.5, cemetery: 11, park: 11, castle: 19, cloister: 12, mine: 13, sawmill: 12, lodge: 10, barn: 9, bathhouse: 10, workshop: 7.5, cabana: 5,
                        hospital: 11, brewery: 10, barracks: 11, garden: 10, shrine: 9, teahouse: 7.5, shipyard: 15, smelter: 10 };
   // The inside of a castle, in the castle's own frame (+z is toward the gate): the curtain wall, its towers, the keep,
   // the great hall, the barracks, the armoury and the chapel round the bailey, and the paths between their doors.
@@ -1549,6 +1666,9 @@ function WorldGen(seed) {
     if (mega) wants.push('markethall', 'markethall', 'arena', 'theatre', 'museum', 'college', 'bathhouse', 'bathhouse', 'hospital', 'brewery', 'brewery', 'barracks', 'barracks', 'gaminghouse', 'gaminghouse', 'park', 'park', 'park', 'cemetery',
       ...Array(8).fill('eatery'), ...Array(8).fill('latrine'), ...Array(6).fill('workshop'), ...Array(7).fill('square'), ...Array(10).fill('mansion'), 'guildhall', 'guildhall', 'guildhall');
     if (s.tier === 3) wants.push('markethall', 'arena', (s.seed >>> 4) % 5 ? 'grandmuseum' : 'museum', 'bathhouse', 'eatery', 'eatery', 'latrine', 'latrine', 'gaminghouse');
+    // a casino: every great city has one, most other cities too, and the richer seaside resorts
+    if (s.tier === 3 && (mega || (s.seed >>> 9) % 3 !== 0)) wants.push('casino');
+    else if (s.tier === 2 && (kind === 'resort' || (med && (s.seed >>> 9) % 4 === 0))) wants.push('casino');
     else if (s.tier === 2) { wants.push('eatery', 'latrine', 'markethall'); if ((s.seed >>> 4) % 3 === 0) wants.push('museum'); if (kind === 'castle') wants.push('arena'); if (med || east || s.culture === 'desert' || s.culture === 'tropic') wants.push('bathhouse'); }
     if ((kind === 'mining' || kind === 'prospecting') && s.tier >= 1) wants.push('gaminghouse');
     if (east) { wants.push('shrine'); if (s.tier >= 1) wants.push('garden', 'teahouse'); if (s.tier >= 2) wants.push('garden'); }
@@ -1573,7 +1693,7 @@ function WorldGen(seed) {
     }
     // whatever found no street end takes a plot along a street instead, as near the square as it will fit
     {
-      const SIDE_OK = new Set(['cemetery', 'park', 'workshop', 'barn', 'bathhouse', 'lodge', 'cloister', 'hospital', 'brewery', 'barracks', 'garden', 'shrine', 'teahouse', 'markethall', 'arena', 'museum', 'grandmuseum', 'eatery', 'latrine', 'gaminghouse', 'theatre', 'college', 'square', 'mansion', 'guildhall']);
+      const SIDE_OK = new Set(['cemetery', 'park', 'workshop', 'barn', 'bathhouse', 'lodge', 'cloister', 'hospital', 'brewery', 'barracks', 'garden', 'shrine', 'teahouse', 'markethall', 'arena', 'museum', 'grandmuseum', 'eatery', 'latrine', 'gaminghouse', 'casino', 'theatre', 'college', 'square', 'mansion', 'guildhall']);
       const unplaced = [];
       for (const w of new Set(wants)) { if (!SIDE_OK.has(w)) continue; const need = wants.filter(q => q === w).length - lots.filter(L => L.type === w).length; for (let k = 0; k < need; k++) unplaced.push(w); }
       const side = [];
@@ -2454,6 +2574,59 @@ function WorldGen(seed) {
         const [sgx, sgz] = loc(bx, bz, L.rot, 3, D / 2 + 8.4); labels.push({ type: 'shop', x: sgx, y: gy + 2.2, z: sgz, text: nm, kind: 'museum' });
         claim(L.x, L.z, L.rad); return true;
       }
+      if (T === 'casino') {
+        // a palace of chance: a tall hall behind a colonnade, a gilded cupola over the gaming floor, banners and
+        // lanterns at the doors, broad steps. Built in the town's own manner: a lacquered pavilion in the east, a
+        // white domed palace in the desert, a stuccoed Ridotto by the Mediterranean, pale ashlar everywhere else
+        const east = PL.style === 'eastern', med = PL.style === 'mediterranean', desert = s.culture === 'desert';
+        const W = 22, D = 15, Hh = 10, gold = C(212, 170, 70), deep = C(128, 20, 30);
+        const wc = east ? C(150, 40, 32) : desert ? C(242, 238, 228) : med ? pk([C(232, 196, 160), C(222, 166, 150), C(236, 206, 128)]) : C(206, 198, 180);
+        const trim = east ? C(40, 34, 30) : desert ? C(230, 222, 204) : C(236, 230, 216);
+        const nm = east ? `The ${pk(['Golden Carp', 'Jade Dragon', 'Thousand Lanterns', 'Lucky Crane', 'Red Phoenix'])} House of Fortune`
+          : med ? `Il Ridotto di ${s.name}` : desert ? `The ${pk(['Crescent', 'Golden', 'Sapphire', 'Sultan\'s'])} Palace of Chance` : `The ${pk(['Grand Casino of ' + s.name, 'Golden Wheel Casino', 'Crown & Anchor Casino', 'Silver Stag Casino', s.name + ' Casino Royal'])}`;
+        const [bx, bz] = loc(L.x, L.z, L.rot, 0, -2), S = siteOf(bx, bz, L.rot, W, D + 9), fd = Math.max(2, S.found);
+        gy = S.y;
+        put('box', bx, gy - fd, bz, W, Hh + fd + (east ? 0 : 1.2), D, L.rot, wc, (east ? ST.EAST : ST.GLASS) + 1000 + YOFF(fd));
+        const H = hall('casino', bx, bz, L.rot, W, D, Hh, gy, nm); H.grand = true;
+        if (east) {
+          put('eroof', bx, gy + Hh - 0.05, bz, W + 2.6, 5.2, D + 2.6, L.rot, C(58, 60, 66), ST.KAWARA);
+          put('eroof', bx, gy + Hh + 4.2, bz, W * 0.45, 3.2, D * 0.45, L.rot, C(58, 60, 66), ST.KAWARA);
+          put('box', bx, gy + Hh + 3.2, bz, W * 0.4, 1.6, D * 0.4, L.rot, C(150, 40, 32), ST.PAINT);
+          const [px, pz] = loc(bx, bz, L.rot, 0, 0); put('cone', px, gy + Hh + 6.8, pz, 0.6, 1.6, 0.6, 0, gold, ST.PAINT);
+        } else {
+          put('slab', bx, gy + Hh + 1.1, bz, W + 0.8, 0.6, D + 0.8, L.rot, trim, ST.STONE);
+          if (!desert) put('hip', bx, gy + Hh + 1.6, bz, W + 0.6, D * 0.26 + 0.4, D + 0.6, L.rot, med ? pk(MED.roof) : C(70, 76, 86), med ? ST.TILE : ST.SHINGLE);
+          // the cupola over the gaming floor: a drum with windows, a gilded dome (blue-green tiles in the desert), a lantern and a finial
+          put('ocylw', bx, gy + Hh + 1.6, bz, 7.5, desert ? 2.6 : 5.8, 7.5, 0, trim, ST.GLASS + ST.CYL + ST.NODOOR);
+          const dy = gy + Hh + (desert ? 4.2 : 7.4);
+          put('dome', bx, dy, bz, 8.2, desert ? 7 : 5.2, 8.2, 0, desert ? C(56, 140, 146) : gold, ST.DOME);
+          put('ocylw', bx, dy + (desert ? 6.8 : 5.0), bz, 1.4, 1.6, 1.4, 0, trim, ST.STONE + ST.CYL); put('cone', bx, dy + (desert ? 8.4 : 6.6), bz, 1.6, 2.0, 1.6, 0, gold, ST.PAINT);
+          if (desert) for (const sd of [-1, 1]) for (const fz of [-1, 1]) { const [mx, mz] = loc(bx, bz, L.rot, sd * (W / 2 - 1), fz * (D / 2 - 1)); put('ocylw', mx, gy + Hh + 1.4, mz, 1.6, 3.4, 1.6, 0, trim, ST.STONE + ST.CYL); put('dome', mx, gy + Hh + 4.8, mz, 1.8, 1.8, 1.8, 0, gold, ST.DOME); }
+        }
+        // the colonnade across the front: columns with gilt capitals (red lacquered posts in the east), a balcony above
+        const colC = east ? EAST.red : trim, cz = D / 2 + 2.6, n = 8;
+        for (let i = 0; i < n; i++) {
+          const [px, pz] = loc(bx, bz, L.rot, -W / 2 + 1.2 + i * (W - 2.4) / (n - 1), cz);
+          put('cyl', px, gy, pz, east ? 0.7 : 0.95, Hh * 0.62, east ? 0.7 : 0.95, 0, colC, east ? ST.PAINT : ST.STONE);
+          if (!east) { put('ocyl', px, gy + Hh * 0.62 - 0.5, pz, 1.3, 0.5, 1.3, 0, gold, ST.PAINT); put('ocyl', px, gy, pz, 1.3, 0.35, 1.3, 0, trim, ST.STONE); }
+          if (i < n - 1 && i % 2 === 0) { const [fx, fz] = loc(bx, bz, L.rot, -W / 2 + 1.2 + (i + 0.5) * (W - 2.4) / (n - 1), cz + 0.2); put('flag', fx, gy + Hh * 0.62 - 4.2, fz, 1.1, 3.4, 0.04, L.rot, i % 4 ? gold : deep, ST.CLOTH); }
+        }
+        { const [px, pz] = loc(bx, bz, L.rot, 0, cz);
+          put('slab', px, gy + Hh * 0.62, pz, W + 0.4, 0.7, 3.8, L.rot, east ? C(40, 34, 30) : trim, ST.STONE);
+          if (east) put('eroof', px, gy + Hh * 0.62 + 0.6, pz, W + 1.4, 1.6, 4.6, L.rot, C(58, 60, 66), ST.KAWARA);
+          else { const [rx, rz] = loc(bx, bz, L.rot, 0, cz + 1.8); put('railing', rx, gy + Hh * 0.62 + 0.7, rz, W, 1.0, 0.06, L.rot, gold, ST.IRON); put('over', px, gy + Hh * 0.62 + 0.36, pz + 0.01, W * 0.4, 0.4, 3.9, L.rot, gold, ST.PAINT); } }
+        // lanterns either side of the doors, and down the steps
+        for (const sd of [-1, 1]) for (const lz of [cz - 0.4, cz + 3.4]) {
+          const [lx, lzz] = loc(bx, bz, L.rot, sd * (lz > cz ? 4.2 : 2.2), lz);
+          if (lz > cz) put('post', lx, gy - 0.6, lzz, 0.14, 3.4, 0.14, L.rot, C(30, 30, 32), ST.IRON);
+          put('lantern', lx, gy + (lz > cz ? 2.8 : 3.0), lzz, 0.44, 0.62, 0.44, 0, east ? EAST.red : C(120, 96, 60), ST.PAINT); lamps.push([lx, gy + (lz > cz ? 3.0 : 3.2), lzz]);
+        }
+        for (let k = 0; k < 4; k++) { const [qx, qz] = loc(bx, bz, L.rot, 0, cz + 2.2 + k * 0.55); put('slab', qx, gy - 0.35 - k * 0.14, qz, W - 4 + k * 0.6, 0.5, 0.9, L.rot, east ? C(150, 146, 136) : C(214, 208, 194), ST.STONE); }
+        // a red carpet down the steps to the street
+        { const [qx, qz] = loc(bx, bz, L.rot, 0, cz + 1.2); put('slab', qx, gy + 0.02, qz, 2.2, 0.06, 4.2, L.rot, deep, ST.CLOTH); }
+        const [sgx, sgz] = loc(bx, bz, L.rot, 3.4, cz + 4.4); labels.push({ type: 'shop', x: sgx, y: gy + 2.2, z: sgz, text: nm, kind: 'casino' });
+        claim(L.x, L.z, L.rad); return true;
+      }
       if (T === 'museum') {
         const sw = styleWall(true), W = 14, D = 10, Hh = 8;
         building('museum', L.x, L.z, L.rot, W, D, Hh, gy, PL.style === 'eastern' ? `${s.name} Treasure House` : `The ${s.name} Museum of Curiosities`, sw);
@@ -2733,9 +2906,19 @@ function WorldGen(seed) {
         const lo = PL.dense ? S.w / 2 - 0.25 : S.w / 2 + 0.7, x = S.pts[i][0] - tz * side * lo, z = S.pts[i][1] + tx * side * lo, gl = gyAt(x, z);
         if (S.hidden || !free(x, z, 0.3) || insideHouse(x, z, 0.35)) continue;
         if (PL.style === 'eastern') { put('toro', x, gl, z, 0.9, 0.9, 0.9, Math.atan2(tx, tz), C(150, 146, 136), ST.STONE); lamps.push([x, gl + 1.4, z]); continue; }
-        put('post', x, gl - 0.5, z, 0.16, 3.7, 0.16, 0, C(58, 46, 34), ST.PLANK);
-        put('lantern', x, gl + 3.1, z, 0.42, 0.52, 0.42, 0, PL.style === 'mediterranean' ? C(40, 40, 42) : C(120, 96, 60), ST.PAINT);
-        lamps.push([x, gl + 3.35, z]);
+        if (s.tier >= 2) {
+          // a city lamp: an iron post on a stone foot, an arm reaching out over the street, the lantern hung from it
+          const ax = x + tz * side * 0.6, az = z - tx * side * 0.6, iron = C(36, 36, 38);
+          put('cyl', x, gl - 0.3, z, 0.36, 0.75, 0.36, 0, PL.style === 'mediterranean' || s.culture === 'desert' ? C(222, 212, 192) : cul.stone, ST.STONE);
+          put('post', x, gl + 0.4, z, 0.11, 3.6, 0.11, 0, iron, ST.IRON); put('ocyl', x, gl + 3.98, z, 0.2, 0.2, 0.2, 0, iron, ST.IRON);
+          put('over', (x + ax) / 2, gl + 3.72, (z + az) / 2, 0.06, 0.06, 0.72, Math.atan2(ax - x, az - z), iron, ST.IRON); put('post', ax, gl + 3.6, az, 0.03, 0.14, 0.03, 0, iron, ST.IRON);
+          put('lantern', ax, gl + 3.05, az, 0.36, 0.55, 0.36, 0, s.culture === 'desert' ? C(170, 130, 60) : iron, ST.PAINT);
+          lamps.push([ax, gl + 3.3, az]);
+        } else {
+          put('post', x, gl - 0.5, z, 0.16, 3.7, 0.16, 0, C(58, 46, 34), ST.PLANK);
+          put('lantern', x, gl + 3.1, z, 0.42, 0.52, 0.42, 0, PL.style === 'mediterranean' ? C(40, 40, 42) : C(120, 96, 60), ST.PAINT);
+          lamps.push([x, gl + 3.35, z]);
+        }
         if (s.tier >= 2 && n2 % 2 === 0) { const gx = S.pts[i][0] + tz * side * (S.w / 2 - 0.5), gz = S.pts[i][1] - tx * side * (S.w / 2 - 0.5); put('slab', gx, gyAt(gx, gz) + 0.02, gz, 0.9, 0.2, 0.6, Math.atan2(tx, tz), C(30, 30, 32), ST.IRON); }
       }
     }
@@ -2953,8 +3136,203 @@ function WorldGen(seed) {
       const dest = rd.other;
       labels.push({ type: 'sign', x: sx3, y: gy + 2.4, z: sz3, text: `${roadName(s, dest)} → ${dest.name} ${(Math.hypot(dest.x - s.x, dest.z - s.z) / 1000).toFixed(1)} km` });
     }
+    // ---------- street furniture: lamps down every lane and round the square, benches and trees along the main streets,
+    // flowers at the doors, drinking fountains, fountains in little piazzas, and wells for the villages.
+    // It has its own dice, so everything else in the town keeps the shape it always had.
+    const feats = [];
+    if (PL.kind !== 'camp' && s.tier >= 1) {
+      const fr = mkRng((s.seed ^ 0x7f4a7c15) >>> 0), fpk = a => a[Math.floor(fr() * a.length)];
+      const east = PL.style === 'eastern', med = PL.style === 'mediterranean', desert = s.culture === 'desert', north = s.culture === 'north', hot = desert || s.culture === 'tropic';
+      const iron = C(36, 36, 38), wood2 = C(112, 80, 50), pale = med || desert ? C(222, 212, 192) : cul.stone;
+      const nearDoor = (x, z, d) => { for (const H of houses) if (H.door && Math.abs(H.door[0] - x) < d && Math.abs(H.door[1] - z) < d && Math.hypot(H.door[0] - x, H.door[1] - z) < d) return true; return false; };
+      const spot = (x, z, rad) => free(x, z, rad) && !insideHouse(x, z, rad + 0.15) && !nearDoor(x, z, rad + 1.4) && gyAt(x, z) > 0.4;
+      const onStreets = S => !S.hidden && !S.castleRoad && S.pts.length >= 2;
+      // walk a street, stopping every `step` metres: the point, the way the street runs, and alternate sides
+      const along = (S, step, off0, fn) => {
+        let acc = off0, side = fr() < 0.5 ? 1 : -1;
+        for (let i = 1; i < S.pts.length; i++) {
+          const [ax, az] = S.pts[i - 1], [bx, bz] = S.pts[i], L = Math.hypot(bx - ax, bz - az);
+          if (L < 1e-3) continue;
+          const tx = (bx - ax) / L, tz = (bz - az) / L;
+          let t = acc;
+          for (; t <= L; t += step) { fn(ax + tx * t, az + tz * t, tx, tz, side); side = -side; }
+          acc = t - L;
+        }
+      };
+      const edge = (S, extra) => (PL.dense ? S.w / 2 - 0.3 : S.w / 2 + 0.6) + extra;
+      // a lamp whose arm reaches toward angle `arm`: iron in the cities, timber in the towns, a stone lantern in the east
+      const lampPost = (x, z, arm) => {
+        const gl = gyAt(x, z);
+        if (east) { put('toro', x, gl, z, 0.9, 0.9, 0.9, arm, C(150, 146, 136), ST.STONE); lamps.push([x, gl + 1.4, z]); claim(x, z, 0.6); return; }
+        const ax = x + Math.sin(arm) * 0.6, az = z + Math.cos(arm) * 0.6;
+        if (s.tier >= 2) {
+          put('cyl', x, gl - 0.3, z, 0.36, 0.75, 0.36, 0, pale, ST.STONE);
+          put('post', x, gl + 0.4, z, 0.11, 3.6, 0.11, 0, iron, ST.IRON); put('ocyl', x, gl + 3.98, z, 0.2, 0.2, 0.2, 0, iron, ST.IRON);
+          put('over', (x + ax) / 2, gl + 3.72, (z + az) / 2, 0.06, 0.06, 0.72, arm, iron, ST.IRON); put('post', ax, gl + 3.6, az, 0.03, 0.14, 0.03, 0, iron, ST.IRON);
+          put('lantern', ax, gl + 3.05, az, 0.36, 0.55, 0.36, 0, desert ? C(170, 130, 60) : iron, ST.PAINT);
+          lamps.push([ax, gl + 3.3, az]);
+        } else {
+          put('post', x, gl - 0.4, z, 0.15, 3.3, 0.15, 0, C(70, 54, 38), ST.PLANK);
+          put('over', (x + ax) / 2, gl + 2.78, (z + az) / 2, 0.09, 0.09, 0.74, arm, C(70, 54, 38), ST.PLANK);
+          put('lantern', ax, gl + 2.2, az, 0.34, 0.5, 0.34, 0, C(120, 96, 60), ST.PAINT);
+          lamps.push([ax, gl + 2.45, az]);
+        }
+        claim(x, z, 0.5);
+      };
+      // lamps down every lane (the main streets already have theirs)
+      const lampStep = s.mega || s.tier === 3 ? 15 : s.tier === 2 ? 18 : 26;
+      for (const S of PL.streets) {
+        if (S.main || !onStreets(S)) continue;
+        along(S, lampStep, lampStep * 0.5, (px, pz, tx, tz, side) => {
+          for (const sd of [side, -side]) {
+            const lo = edge(S, 0), x = px - tz * sd * lo, z = pz + tx * sd * lo;
+            if (!spot(x, z, 0.45)) continue;
+            lampPost(x, z, Math.atan2(tz * sd, -tx * sd)); return;
+          }
+        });
+      }
+      // lamps round the square
+      { const hub = PL.plaza.r, n = 4 + s.tier * 2;
+        for (let i = 0; i < n; i++) { const a = (i + 0.5) / n * Math.PI * 2, x = s.x + Math.cos(a) * (hub - 1.2), z = s.z + Math.sin(a) * (hub - 1.2); if (spot(x, z, 0.5)) lampPost(x, z, Math.atan2(s.x - x, s.z - z)); } }
+      // benches along the main streets, facing the street
+      const benchAt = (x, z, rot) => {
+        const gl = gyAt(x, z), [bx, bz] = loc(x, z, rot, 0, -0.2);
+        put('box', x, gl + 0.4, z, 1.7, 0.07, 0.46, rot, wood2, ST.PLANK);
+        if (east) put('box', x, gl + 0.47, z, 1.72, 0.02, 0.5, rot, EAST.red, ST.CLOTH);
+        else put('box', bx, gl + 0.47, bz, 1.7, 0.42, 0.06, rot, wood2, ST.PLANK);
+        for (const sd of [-1, 1]) { const [lx, lz] = loc(x, z, rot, sd * 0.76, -0.02); put('box', lx, gl, lz, 0.07, 0.42, 0.48, rot, east || s.tier < 2 ? wood2 : iron, east || s.tier < 2 ? ST.PLANK : ST.IRON); }
+        const [sx, sz] = loc(x, z, rot, 0, 0.12);
+        stations.push({ type: 'bench', x: sx, z: sz, face: rot }); claim(x, z, 1.0);
+      };
+      for (const S of PL.streets) {
+        if (!S.main || !onStreets(S)) continue;
+        along(S, s.tier >= 2 ? 30 : 42, 12, (px, pz, tx, tz, side) => {
+          const lo = edge(S, 0.5), x = px - tz * side * lo, z = pz + tx * side * lo;
+          if (Math.hypot(x - s.x, z - s.z) < PL.plaza.r + 3 || !spot(x, z, 1.0)) return;
+          benchAt(x, z, Math.atan2(tz * side, -tx * side));
+        });
+      }
+      // street trees in a stone curb along the wide main streets of the cities
+      const treeAt = (x, z) => {
+        const gl = gyAt(x, z);
+        put('cyl', x, gl - 0.2, z, 1.5, 0.4, 1.5, 0, pale, ST.STONE);
+        if (east) put(fr() < 0.5 ? 'sakura' : 'pine', x, gl, z, 0.8 + fr() * 0.2, 0.8 + fr() * 0.2, 0.8, fr() * 6, fpk(EAST.blossom.concat([C(40, 70, 44)])), ST.PAINT);
+        else if (med) { if (fr() < 0.5) put('cypress', x, gl, z, 0.9, 0.9 + fr() * 0.3, 0.9, 0, C(34, 62, 34), ST.PAINT); else { put('ocyl', x, gl, z, 0.3, 3.4, 0.3, 0, C(110, 90, 66), ST.PLANK); put('dome', x, gl + 3.2, z, 4.2, 1.4, 4.2, 0, C(52, 88, 40), ST.PAINT); } }
+        else if (hot) { put('ocyl', x, gl, z, 0.34, 5.2, 0.34, 0, C(128, 100, 66), ST.PLANK); for (let i = 0; i < 6; i++) { const b = i / 6 * 6.283, lx = x + Math.cos(b) * 1.1, lz = z + Math.sin(b) * 1.1; put('cone', lx, gl + 4.3, lz, 0.5, 1.6, 0.5, b, C(58, 110, 40), ST.PAINT); } put('dome', x, gl + 4.9, z, 1.6, 0.9, 1.6, 0, C(62, 118, 44), ST.PAINT); }
+        else { put('ocyl', x, gl, z, 0.28, 2.6, 0.28, 0, C(90, 70, 50), ST.PLANK); put('dome', x, gl + 2.2, z, 3.0, 2.8, 3.0, 0, north ? C(46, 80, 44) : C(64, 104, 48), ST.PAINT); put('dome', x + 0.3, gl + 3.6, z - 0.2, 2.0, 1.8, 2.0, 0, north ? C(40, 72, 40) : C(58, 96, 44), ST.PAINT); }
+        claim(x, z, 1.3);
+      };
+      if (s.tier >= 2) for (const S of PL.streets) {
+        if (!S.main || !onStreets(S) || (PL.dense && S.w < 7)) continue;
+        along(S, 17, 8, (px, pz, tx, tz, side) => {
+          for (const sd of [side, -side]) {
+            const lo = S.w / 2 + 1.5, x = px - tz * sd * lo, z = pz + tx * sd * lo;
+            if (Math.hypot(x - s.x, z - s.z) < PL.plaza.r + 2 || !spot(x, z, 1.3)) continue;
+            treeAt(x, z);
+          }
+        });
+      }
+      // flowers at the doors: geraniums in terracotta by the Mediterranean, half-barrels of flowers in the north and west, glazed pots in the east
+      const flowers = med ? [C(210, 40, 60), C(230, 80, 120), C(240, 240, 236), C(200, 40, 40)] : east ? [C(60, 96, 50)] : desert ? [C(60, 110, 50), C(220, 90, 140)] : [C(220, 60, 60), C(240, 200, 60), C(170, 90, 200), C(240, 240, 236), C(230, 120, 60)];
+      const chance = med ? 0.55 : north ? 0.18 : desert ? 0.3 : 0.35;
+      for (const H of houses) {
+        if (H.round || !['home', 'shop', 'inn', 'craftshop', 'eatery', 'teahouse'].includes(H.kind) || fr() > chance) continue;
+        const sides = H.kind === 'home' ? (fr() < 0.35 ? [-1, 1] : [fr() < 0.5 ? -1 : 1]) : [-1];
+        for (const sd of sides) {
+          const [x, z] = loc(H.x, H.z, H.rot, sd * (0.95 + fr() * 0.25), H.dp / 2 + 0.35), gl = gyAt(x, z);
+          if (!free(x, z, 0.3) || insideHouse(x, z, 0.05) || Math.abs(gl - H.y) > 0.6) continue;
+          if (med) { put('cyl', x, gl, z, 0.5, 0.45, 0.5, 0, C(176, 96, 60), ST.PAINT); put('dome', x, gl + 0.42, z, 0.62, 0.45, 0.62, 0, C(52, 96, 40), ST.PAINT); for (let k = 0; k < 3; k++) put('dome', x + Math.cos(k * 2.1) * 0.16, gl + 0.62, z + Math.sin(k * 2.1) * 0.16, 0.16, 0.14, 0.16, 0, fpk(flowers), ST.PAINT); }
+          else if (east) { put('cyl', x, gl, z, 0.46, 0.34, 0.46, 0, fpk([C(40, 60, 96), C(120, 60, 40), C(60, 60, 60)]), ST.PAINT); put('dome', x, gl + 0.32, z, 0.6, 0.5, 0.6, fr() * 6, fpk(flowers), ST.PAINT); }
+          else if (desert) { put('dome', x, gl, z, 0.6, 0.7, 0.6, 0, C(186, 120, 74), ST.PAINT); put('cone', x, gl + 0.55, z, 0.7, 0.9, 0.7, 0, fpk(flowers), ST.PAINT); }
+          else { put('barrel', x, gl, z, 0.58, 0.42, 0.58, fr() * 6, C(120, 80, 46), ST.BARREL); put('dome', x, gl + 0.38, z, 0.62, 0.36, 0.62, 0, C(58, 100, 44), ST.PAINT); for (let k = 0; k < 4; k++) put('dome', x + Math.cos(k * 1.6) * 0.17, gl + 0.55, z + Math.sin(k * 1.6) * 0.17, 0.15, 0.12, 0.15, 0, fpk(flowers), ST.PAINT); }
+          claim(x, z, 0.35);
+        }
+      }
+      // drinking fountains along the main streets: a stone pillar and basin (a stone water basin with a bamboo spout in the east)
+      if (s.tier >= 2) for (const S of PL.streets) {
+        if (!S.main || !onStreets(S)) continue;
+        along(S, s.mega ? 60 : 80, 26, (px, pz, tx, tz, side) => {
+          const lo = edge(S, 0.3), x = px - tz * side * lo, z = pz + tx * side * lo, rot = Math.atan2(tz * side, -tx * side);
+          if (!spot(x, z, 0.8)) return;
+          const gl = gyAt(x, z), [fx, fz] = loc(x, z, rot, 0, 0.32), [wx, wz] = loc(x, z, rot, 0, 1.1);
+          if (east) {
+            put('cyl', x, gl - 0.1, z, 0.9, 0.62, 0.9, 0, C(140, 136, 128), ST.STONE); put('ocyl', x, gl + 0.5, z, 0.68, 0.03, 0.68, 0, C(40, 84, 96), ST.WATER);
+            const [bx, bz] = loc(x, z, rot, 0, -0.75); put('post', bx, gl, bz, 0.08, 1.0, 0.08, 0, C(120, 150, 70), ST.PLANK); put('over', bx, gl + 0.9, bz, 0.06, 0.06, 0.6, rot, C(120, 150, 70), ST.PLANK);
+          } else {
+            put('box', x, gl - 0.1, z, 0.55, desert ? 1.6 : 1.35, 0.32, rot, pale, ST.STONE);
+            if (desert || med) put('dome', x, gl + (desert ? 1.5 : 1.25), z, 0.55, 0.3, 0.32, rot, pale, ST.STONE);
+            put('box', fx, gl - 0.1, fz, 0.75, 0.48, 0.42, rot, pale, ST.STONE); put('box', fx, gl + 0.36, fz, 0.64, 0.03, 0.32, rot, C(40, 84, 96), ST.WATER);
+            const [sx, sz] = loc(x, z, rot, 0, 0.2); put('over', sx, gl + 0.85, sz, 0.05, 0.05, 0.22, rot, C(150, 120, 60), ST.IRON);
+          }
+          stations.push({ type: 'well', x: wx, z: wz, face: rot + Math.PI });
+          claim(x, z, 0.9); feats.push({ type: 'drink', x, z });
+        });
+      }
+      // fountains in little piazzas off the main streets: tiered basins in stone, a square pool in the desert
+      const want = east ? 0 : s.mega ? 4 : s.tier === 3 ? 2 : s.tier === 2 && !med ? 1 : 0;
+      let made = 0;
+      if (want) for (const S of PL.streets) {
+        if (made >= want || !S.main || !onStreets(S)) continue;
+        along(S, 23, 16, (px, pz, tx, tz, side) => {
+          if (made >= want || Math.hypot(px - s.x, pz - s.z) < PL.plaza.r + 10) return;
+          const lo = S.w / 2 + 3.9, x = px - tz * side * lo, z = pz + tx * side * lo, rot = Math.atan2(tz * side, -tx * side);
+          if (!spot(x, z, 3.6) || !clearOfStreets(x, z, 3.3)) return;
+          const gl = gyAt(x, z), sc = pale;
+          if (desert) {
+            put('box', x, gl - 0.4, z, 5.2, 0.9, 5.2, rot, sc, ST.STONE); put('box', x, gl + 0.44, z, 4.6, 0.05, 4.6, rot, C(40, 96, 110), ST.WATER);
+            put('ocyl', x, gl + 0.3, z, 0.7, 0.9, 0.7, 0, C(56, 140, 146), ST.PAINT); put('ocyl', x, gl + 1.2, z, 1.3, 0.12, 1.3, 0, sc, ST.STONE); put('ocyl', x, gl + 1.32, z, 1.1, 0.03, 1.1, 0, C(50, 110, 120), ST.WATER);
+          } else {
+            put('cylw', x, gl - 0.4, z, 6.0, 1.05, 6.0, 0, sc, ST.STONE + ST.CYL + ST.NODOOR); put('ocyl', x, gl + 0.55, z, 5.4, 0.06, 5.4, 0, C(40, 84, 96), ST.WATER);
+            put('cyl', x, gl, z, 0.8, 1.9, 0.8, 0, sc, ST.STONE); put('ocyl', x, gl + 1.9, z, 2.5, 0.32, 2.5, 0, sc, ST.STONE); put('ocyl', x, gl + 2.2, z, 2.2, 0.05, 2.2, 0, C(50, 96, 110), ST.WATER);
+            put('ocyl', x, gl + 2.22, z, 0.36, 1.0, 0.36, 0, sc, ST.STONE); put('ocyl', x, gl + 3.2, z, 1.0, 0.2, 1.0, 0, sc, ST.STONE);
+            if (s.tier >= 3) { put('ocyl', x, gl + 3.4, z, 0.3, 0.7, 0.3, 0, sc, ST.STONE); put('dome', x, gl + 4.1, z, 0.6, 0.7, 0.6, 0, sc, ST.STONE); } else put('dome', x, gl + 3.4, z, 0.7, 0.45, 0.7, 0, sc, ST.STONE);
+          }
+          claim(x, z, 3.6); labels.push({ type: 'fountain', x, y: gl + 3.5, z }); feats.push({ type: 'fountain', x, z });
+          // benches facing the water, a lamp at each side
+          for (const sd of [-1, 1]) {
+            const [bx, bz] = loc(x, z, rot + sd * Math.PI / 2, 0, 4.1); if (spot(bx, bz, 1.0)) benchAt(bx, bz, Math.atan2(x - bx, z - bz));
+            const [lx, lz] = loc(x, z, rot + sd * Math.PI * 0.75, 0, 4.0); if (spot(lx, lz, 0.5)) lampPost(lx, lz, Math.atan2(x - lx, z - lz));
+          }
+          made++;
+        });
+      }
+      // wells in the villages and towns, out along the lanes where the squares are far
+      if (s.tier <= 2 && !east) {
+        let wells = 0;
+        for (const S of PL.streets) {
+          if (wells >= (s.tier === 2 ? 2 : 1) || S.main || !onStreets(S)) continue;
+          along(S, 30, 20, (px, pz, tx, tz, side) => {
+            if (wells >= (s.tier === 2 ? 2 : 1) || Math.hypot(px - s.x, pz - s.z) < PL.plaza.r + 20) return;
+            const lo = S.w / 2 + 2.0, x = px - tz * side * lo, z = pz + tx * side * lo, a = Math.atan2(tz * side, -tx * side);
+            if (!spot(x, z, 1.5)) return;
+            const gl = gyAt(x, z);
+            put('cyl', x, gl - 0.5, z, 2.0, 1.35, 2.0, 0, cul.stone, ST.STONE); put('ocyl', x, gl + 0.8, z, 1.7, 0.03, 1.7, 0, C(20, 40, 46), ST.WATER);
+            put('pyramid', x, gl + 2.3, z, 2.6, 1.0, 2.6, a, C(110, 90, 70), ST.SHINGLE);
+            for (const sd of [-1, 1]) { const [qx, qz] = loc(x, z, a, sd * 0.95, 0); put('post', qx, gl, qz, 0.15, 2.3, 0.15, a, C(90, 70, 50), ST.PLANK); }
+            put('over', x, gl + 1.9, z, 0.08, 0.08, 1.9, a + Math.PI / 2, C(90, 70, 50), ST.PLANK);
+            put('barrel', x + Math.sin(a) * 1.4, gl, z + Math.cos(a) * 1.4, 0.42, 0.4, 0.42, 0, C(120, 80, 46), ST.BARREL);
+            stations.push({ type: 'well', x: x + Math.sin(a) * 1.7, z: z + Math.cos(a) * 1.7, face: a + Math.PI });
+            claim(x, z, 1.5); feats.push({ type: 'well', x, z }); wells++;
+          });
+        }
+      }
+    }
+    P.feats = feats;
+    // how each building is glazed, carried on its walls for the shader: 1 a shopfront, 2 a hall's tall windows,
+    // 3 a barn's or storehouse's few high openings, 4 a tower's narrow lights, 5 a noble house; 0 is judged from the house's size
+    {
+      const SCHEME = { shop: 1, craftshop: 1, eatery: 1, inn: 1, gaminghouse: 1, assay: 1, bakery: 1, guildhall: 2, college: 2, museum: 2, hospital: 2, brewery: 2, throne: 2, hall: 2, casino: 2, greathouse: 2, chapel: 2, castlechapel: 2,
+        store: 3, mill: 3, smelter: 3, shipwright: 3, stable: 3, latrine: 3, keep: 4, tower: 4, belltower: 4, minaret: 4, armory: 4 };
+      const walls = new Map();
+      for (const q of P) if ((q.g === 'box' || q.g === 'cylw') && q.st < 2000 && Math.floor(q.st) % 100 < 10) { const k = q.x + ',' + q.z; (walls.get(k) || walls.set(k, []).get(k)).push(q); }
+      for (const H of houses) {
+        const sc = H.mansion ? 5 : SCHEME[H.kind] || 0;
+        if (!sc) continue;
+        for (const q of walls.get(H.x + ',' + H.z) || []) q.st += sc * 2000;
+      }
+    }
     for (const H of houses) H.style = PL.style;
-    P.houses = houses; P.stalls = stalls; P.stations = stations; P.labels = labels; P.fields = fields; P.decks = decks; P.boats = boats; P.lamps = lamps; P.graves = graves;
+    P.houses = houses; P.stalls = stalls; P.stations = stations; P.labels = labels; P.fields = fields; P.decks = decks; P.boats = boats; P.lamps = lamps.map(l => [l[0], l[1], l[2], gyAt(l[0], l[2])]); P.graves = graves;
     if (layoutCache.size > 400) layoutCache.clear();
     layoutCache.set(s.id, P);
     return P;
@@ -3768,6 +4146,13 @@ float winLit = 0.0;
 /* ---------- building surfaces: procedural plaster, timber, logs, adobe, stone, brick, tiles, thatch ---------- */
 const ARCH_COMMON = /* glsl */`
 float hsh(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+// a window opening: w half-wide from sill y0 to head y1; the head square (0), round-arched (1) or pointed (2)
+float winShape(float x, float y, float w, float y0, float y1, float arch) {
+  float r = step(x, w) * step(y0, y) * step(y, y1);
+  if (arch > 0.5 && arch < 1.5) { float t = y1 - w; if (y > t) r *= step(length(vec2(x, y - t)), w); }
+  else if (arch > 1.5) { float t = y1 - 1.732 * w; if (y > t) r *= step(length(vec2(x + w, y - t)), 2.0 * w); }
+  return r;
+}
 vec3 ashlarCol(vec3 base, float u, float ym, float fn) {
   float row = floor(ym / 0.52), bu = u / 0.95 + mod(row, 2.0) * 0.5;
   vec2 f = vec2(fract(bu), fract(ym / 0.52));
@@ -3791,6 +4176,8 @@ float winLit = 0.0;
 vec3 stainedGlow = vec3(0.0);
 {
   float sv = floor(vStyle + 0.00002), fo = vStyle - sv;
+  float scheme = floor((sv + 0.5) / 2000.0);
+  sv -= scheme * 2000.0;
   float yoff = fo > 0.0002 ? fo * 20.0 - 10.0 : 2.0;   // where the ground floor starts in this box
   float ent = step(999.5, sv);
   float nod = step(499.5, sv - ent * 1000.0);
@@ -3863,10 +4250,35 @@ vec3 stainedGlow = vec3(0.0);
       if (inner && (st < 0.5 || (st > 1.5 && st < 2.5) || (st > 4.5 && st < 5.5) || (st > 6.5 && st < 7.5))) col = mix(base, vec3(0.86, 0.8, 0.7), 0.55) * (0.9 + 0.12 * gn);
       if (inner && st > 7.5 && st < 8.5) col = vec3(0.84, 0.8, 0.72) * (0.9 + 0.12 * gn);
       if (!inner && (st < 1.5 || (st > 2.5 && st < 3.5) || (st > 7.5 && st < 8.5)) && ym < 0.55) col = ashlarCol(vec3(0.34, 0.32, 0.3), u, ym + 0.3, fn);
-      float nWin = max(1.0, floor((faceW - 0.4) / 2.7));
+      // ---- windows, each building glazed for what it is: a cottage's few small casements set where the walls allow; a town
+      // house's rows, tallest on the first floor and small under the eaves; a shop's wide front; a hall's tall arched
+      // lights; a barn's high vents; a tower's narrow openings. Stone, brick, timber and stucco each glaze their own way.
+      float hb = hsh(vec2(floor(vBase * 7.0), floor(S.x * 13.0 + S.z * 7.0)));
+      float hb2 = hsh(vec2(hb * 91.7, floor(S.y * 5.0) + 3.0));
+      float hb3 = hsh(vec2(floor(S.x * 3.1 + S.z * 1.7), hb * 17.0 + 1.0));
+      bool sideF = cyl < 0.5 && abs(Nl.x) > abs(Nl.z);
+      float isFront = cyl > 0.5 ? 1.0 : step(0.5, Nl.z);
+      float nSt = max(1.0, floor(hgt / 3.1 + 0.25));
+      float hallS = step(1.5, scheme) * step(scheme, 2.5), utilS = step(2.5, scheme) * step(scheme, 3.5), towerS = step(3.5, scheme) * step(scheme, 4.5), shopS = step(0.5, scheme) * step(scheme, 1.5);
+      float cottage = step(max(S.x, S.z), 8.0) * step(nSt, 1.5) * step(scheme, 0.5);
+      float grandH = step(scheme, 0.5) * step(2.5, nSt) * step(9.0, max(S.x, S.z)) + step(4.5, scheme);
+      float stone = (st > 3.5 && st < 5.5) ? 1.0 : 0.0, stuc = (st > 6.5 && st < 7.5) ? 1.0 : 0.0, logW = (st > 0.5 && st < 1.5) ? 1.0 : 0.0;
+      float adobe = (st > 1.5 && st < 2.5) ? 1.0 : 0.0, slat = (st > 2.5 && st < 3.5) ? 1.0 : 0.0, slit = st > 8.5 ? 1.0 : 0.0, eastW = (st > 7.5 && st < 8.5) ? 1.0 : 0.0;
+      float pitch = mix(2.3, 3.3, hb2);
+      if (sideF) pitch *= 1.45;                     // gable ends have fewer windows than fronts and backs
+      if (cottage > 0.5) pitch = mix(2.7, 3.7, hb2);
+      if (grandH > 0.5) pitch = mix(2.4, 2.9, hb2);  // a grand front is regular and close-set
+      if (hallS > 0.5) pitch = mix(3.0, 3.8, hb2);
+      if (utilS > 0.5) pitch = 4.6;
+      if (towerS > 0.5) pitch = 3.6;
+      if (eastW > 0.5) pitch = 2.7;
+      float nWin = max(1.0, floor((faceW - 0.5) / pitch));
       float cellW = faceW / nWin;
-      float cu = (u + faceW * 0.5) / cellW, fc = fract(cu), fx = (fc - 0.5) * cellW;
+      float cu = (u + faceW * 0.5) / cellW, fc = fract(cu), fx = (fc - 0.5) * cellW, cell = floor(cu);
       float storey = floor(max(ym, 0.0) / 3.1), fy = ym - storey * 3.1;
+      // a cottage's windows drift along the wall, and the odd one at the back or side isn't there at all
+      fx -= cottage * (hsh(vec2(cell, storey) + hb * 5.3) - 0.5) * 0.6;
+      float omit = cottage * (1.0 - isFront) * step(hsh(vec2(cell * 1.7 + 0.3, storey) + hb2 * 3.1), 0.3);
       if (st < 0.5) {
         float tb = step(fy, 0.18) * step(0.3, ym);
         tb = max(tb, step(hgt - 0.22, ym));
@@ -3877,15 +4289,40 @@ vec3 stainedGlow = vec3(0.0);
       }
       if (!inner) col *= mix(0.6, 1.0, smoothstep(-0.2, 0.7, ym));
       col *= mix(1.0, 0.7, smoothstep(hgt - 0.5, hgt, ym));
-      float isFront = cyl > 0.5 ? 1.0 : step(0.5, Nl.z);
       float door = isFront * (1.0 - nod) * step(abs(u), 0.62) * step(ym, 2.3) * step(-0.1, ym);
       float doorFrame = isFront * (1.0 - nod) * step(abs(u), 0.76) * step(ym, 2.44) * step(-0.1, ym) * (1.0 - door);
-      float archK = (st > 1.5 && st < 2.5) ? 1.0 : 0.0;
-      float ww = archK > 0.5 ? 0.36 : 0.46;
-      float valid = step(0.2, ym) * step(ym, hgt - 0.55) * (1.0 - isFront * (1.0 - nod) * step(storey, 0.5) * step(abs(u), 1.3)) * step(abs(u), faceW * 0.5 - 0.45);
-      float slit = st > 8.5 ? 1.0 : 0.0, eastW = (st > 7.5 && st < 8.5) ? 1.0 : 0.0;
-      if (slit > 0.5) { ww = 0.08; valid *= step(0.5, fract(cu * 0.5)) * step(1.5, ym); }
-      if (eastW > 0.5) ww = min(0.72, cellW * 0.36);
+      float ww = mix(0.36, 0.5, hb), y0 = 1.0, y1 = 2.35, arch = 0.0;
+      if (logW > 0.5) { ww = mix(0.28, 0.38, hb); y0 = 1.15; y1 = 2.05; }
+      if (adobe > 0.5) { ww = mix(0.24, 0.34, hb); y0 = 1.25; y1 = 2.2; arch = hb3 < 0.5 ? 1.0 : 2.0; }
+      if (slat > 0.5) { ww = mix(0.4, 0.55, hb); y0 = 0.9; y1 = 2.2; }
+      if (stuc > 0.5) { ww = mix(0.32, 0.42, hb); y0 = 0.85; y1 = 2.5; if (storey < 0.5 && hb3 < 0.4) arch = 1.0; }
+      if (stone > 0.5 && st < 4.5 && hb3 > 0.78) arch = 1.0;
+      if (cottage > 0.5) { ww = mix(0.28, 0.4, hb); y0 = 1.05; y1 = 2.05; }
+      // a tall house: the first floor is the best, with the tallest windows; the top floor tucks small ones under the eaves
+      float top = step(2.5, nSt) * step(nSt - 0.5, storey);
+      float noble = step(2.5, nSt) * step(0.5, storey) * step(storey, 1.5) * max(stone, stuc) * max(grandH, step(0.5, hb2));
+      if (grandH > 0.5) ww += 0.06;
+      if (noble > 0.5) { y0 = 0.6; y1 = 2.65; }
+      if (top > 0.5) { y0 = 1.3; y1 = 2.15; ww *= 0.78; arch = 0.0; }
+      // a shop shows its wares: a wide window either side of the door, small panes over a stall-board
+      float shopW = shopS * isFront * step(storey, 0.5);
+      if (shopW > 0.5) { ww = clamp(cellW * 0.5 - 0.3, 0.45, 1.25); y0 = 0.6; y1 = 2.25; arch = 0.0; }
+      // a hall's windows run up the wall past the storeys, arched at the head (pointed in stone and adobe)
+      if (hallS > 0.5 && eastW < 0.5) { ww = mix(0.5, 0.66, hb); y0 = 1.4; y1 = min(hgt - 1.1, 8.5); arch = stone > 0.5 || adobe > 0.5 ? 2.0 : 1.0; fy = ym; }
+      // barns, stores and mills: a few small openings high on the wall
+      if (utilS > 0.5) { ww = 0.3; y0 = 2.0; y1 = 2.6; arch = 0.0; }
+      // towers and keeps: narrow round-headed lights
+      if (towerS > 0.5) { ww = 0.22; y0 = 1.2; y1 = 2.3; arch = 1.0; }
+      if (eastW > 0.5) { ww = min(0.72, cellW * 0.36); y0 = 1.0; y1 = 2.35; arch = 0.0; }
+      float uc = u - fx;   // the middle of this window along the wall: whole windows or none, never one cut by a corner or the door
+      float valid = step(0.2, ym) * step(ym, hgt - 0.55) * step(abs(uc) + ww, faceW * 0.5 - 0.3) * (1.0 - omit)
+                  * (1.0 - isFront * (1.0 - nod) * step(storey + hallS, 0.5 + hallS * 9.0) * step(abs(uc), 0.85 + ww));
+      if (utilS > 0.5) valid *= max(step(0.5, fract(cell * 0.5 + hb)), step(0.5, storey));
+      if (slit > 0.5) { ww = 0.08; valid *= step(0.5, fract(cu * 0.5)) * step(1.5, ym); arch = 0.0; }
+      // twin lights either side of a mullion on some of the stone and stucco houses
+      float twin = step(0.7, hb3) * max(stone, stuc) * (1.0 - hallS) * (1.0 - shopW) * (1.0 - top) * step(2.2, cellW) * (1.0 - towerS);
+      float wx = abs(fx);
+      if (twin > 0.5) { float tw = ww * 0.62; wx = abs(wx - tw - 0.09); ww = tw; }
       if (st > 5.5 && st < 6.5) {
         valid = 0.0;
         float nW = max(1.0, floor(faceW / 3.4)), cW = faceW / nW, cu2 = (u + faceW * 0.5) / cW, fx2 = (fract(cu2) - 0.5) * cW;
@@ -3904,27 +4341,48 @@ vec3 stainedGlow = vec3(0.0);
         col = mix(col, mix(inner ? gc * (0.2 + 0.8 * dayL) : gc * 0.3, vec3(0.03), lead), sw);
         stainedGlow = gc * sw * (1.0 - lead) * (inner ? dayL * 1.7 : (1.0 - dayL) * 0.22);
       }
-      float wx = abs(fx), topY = 2.35 - archK * ww;
-      float win = step(wx, ww) * step(1.0, fy) * step(fy, 2.35);
-      if (archK > 0.5 && fy > topY) win *= step(length(vec2(wx, fy - topY)), ww);
-      win *= valid;
+      float win = winShape(wx, fy, ww, y0, y1, arch) * valid;
       if (slit > 0.5) win = max(win, step(wx, 0.32) * step(abs(fy - 1.62), 0.055) * valid);
-      float frm = step(wx, ww + 0.09) * step(0.9, fy) * step(fy, 2.45) * valid * (1.0 - win) * (1.0 - slit);
-      float stuc = (st > 6.5 && st < 7.5) ? 1.0 : 0.0;
-      float shut = (st < 1.5 || stuc > 0.5) ? step(ww + 0.09, wx) * step(wx, ww * 2.0 + 0.09) * step(1.0, fy) * step(fy, 2.35) * valid : 0.0;
-      float fbox = (st < 0.5 || stuc > 0.5) ? step(wx, ww + 0.05) * step(0.7, fy) * step(fy, 0.97) * valid : 0.0;
-      float hb = hsh(vec2(floor(vBase * 7.0), floor(S.x * 13.0 + S.z * 7.0)));
+      float frm = winShape(wx, fy, ww + 0.09, y0 - 0.1, y1 + 0.1, arch) * valid * (1.0 - win) * (1.0 - slit);
+      if (shopW > 0.5) frm = max(frm, step(wx, ww + 0.09) * step(0.15, fy) * step(fy, y0) * valid);   // the stall-board under a shop window
+      // shutters on timber, log and stucco houses (not every one), window boxes under some of the timber and stucco windows
+      float shutK = (st < 1.5 || stuc > 0.5) ? step(0.3, hb2) : 0.0;
+      shutK *= (1.0 - shopW) * (1.0 - hallS) * (1.0 - utilS) * (1.0 - towerS) * (1.0 - twin) * step(arch, 0.5);
+      float shut = shutK * step(ww + 0.09, wx) * step(wx, ww * 2.0 + 0.09) * step(y0, fy) * step(fy, y1) * valid;
+      float fbK = (st < 0.5 || stuc > 0.5) ? step(0.45, hsh(vec2(cell, storey + hb))) : 0.0;
+      fbK *= (1.0 - shopW) * (1.0 - hallS) * (1.0 - top) * (1.0 - utilS) * (1.0 - towerS);
+      float fbox = fbK * step(wx, ww + 0.05) * step(y0 - 0.3, fy) * step(fy, y0 - 0.03) * valid;
       vec3 shutC = mix(mix(vec3(0.12, 0.26, 0.16), vec3(0.14, 0.2, 0.34), step(0.33, hb)), vec3(0.42, 0.1, 0.08), step(0.66, hb));
       if (inner) { shut = 0.0; fbox = 0.0; }
       col = mix(col, shutC * (0.75 + 0.3 * step(0.5, fract(fy / 0.2))), shut);
       vec3 flw = mix(vec3(0.75, 0.08, 0.12), vec3(0.95, 0.78, 0.2), step(0.5, fract(u * 3.3)));
       col = mix(col, mix(vec3(0.12, 0.26, 0.07), flw, step(0.5, fn)), fbox);
-      col = mix(col, vec3(0.2, 0.14, 0.08), frm);
+      // dressed-stone surrounds on stone and stucco, timber frames on the rest
+      vec3 frameC = (stone > 0.5 || stuc > 0.5 || adobe > 0.5) && shopW < 0.5 ? mix(base, vec3(0.92, 0.9, 0.84), 0.45) * (0.9 + 0.1 * fn) : vec3(0.2, 0.14, 0.08);
+      col = mix(col, frameC, frm);
       float night = 1.0 - smoothstep(-0.06, 0.1, uSunDir.y);
       float lit = step(0.42, hsh(vec2(floor(cu), storey) + vec2(vBase))) * night;
-      float mull = clamp(step(wx, 0.035) + step(abs(fy - 1.68), 0.035), 0.0, 1.0);
-      vec3 glass = mix(vec3(0.05, 0.07, 0.09), vec3(0.3, 0.36, 0.42), smoothstep(1.0, 2.35, fy) * 0.6);
-      glass = mix(glass, vec3(0.2, 0.14, 0.08), mull);
+      if (hallS > 0.5) lit = step(0.3, hsh(vec2(floor(cu), 7.0) + vec2(vBase))) * night;
+      if (shopW > 0.5) lit = step(0.25, hsh(vec2(floor(cu), 5.0) + vec2(vBase))) * night * 1.2;
+      if (utilS > 0.5) lit *= step(0.75, hsh(vec2(floor(cu), 2.0) + vec2(vBase)));
+      // the glazing: leaded diamonds in timber houses and halls, small panes in stone, brick and shop windows,
+      // two leaves under a transom in stucco, a turned-wood grille in adobe, a simple cross in log and slat
+      float gy = fy - y0, gh = max(0.3, y1 - y0), mull;
+      if ((st < 0.5 && hb2 > 0.4) || (hallS > 0.5 && stone < 0.5)) {
+        vec2 dq = vec2(wx / 0.12 + gy / 0.17, wx / 0.12 - gy / 0.17);
+        mull = clamp(step(abs(fract(dq.x) - 0.5), 0.07) + step(abs(fract(dq.y) - 0.5), 0.07), 0.0, 1.0) * 0.85;
+        if (hallS > 0.5) mull = max(mull, step(wx, 0.04) + step(abs(fract(gy / 1.4) - 0.5), 0.03));
+      } else if (stone > 0.5 || shopW > 0.5) {
+        float pw = shopW > 0.5 ? 0.28 : max(0.2, ww * 0.66), ph = shopW > 0.5 ? 0.3 : gh / (noble > 0.5 ? 5.0 : 4.0);
+        mull = clamp(step(fract(wx / pw), 0.035 / pw) + step(fract(gy / ph), 0.035 / ph), 0.0, 1.0);
+        if (hallS > 0.5) mull = max(mull, step(wx, 0.05));
+      } else if (stuc > 0.5) mull = clamp(step(wx, 0.035) + step(abs(gy - gh * 0.74), 0.035), 0.0, 1.0);
+      else if (adobe > 0.5) mull = clamp(step(abs(fract(wx / 0.11) - 0.5), 0.12) + step(abs(fract(gy / 0.11) - 0.5), 0.12), 0.0, 1.0);
+      else mull = clamp(step(wx, 0.035) + step(abs(gy - gh * 0.5), 0.035), 0.0, 1.0);
+      if (twin > 0.5) mull = clamp(step(abs(gy - gh * 0.62), 0.035) + step(fract(gy / (gh / 3.0)), 0.03), 0.0, 1.0);
+      vec3 glass = mix(vec3(0.05, 0.07, 0.09), vec3(0.3, 0.36, 0.42), smoothstep(0.0, gh, gy) * 0.6);
+      if (adobe > 0.5) glass = vec3(0.06, 0.045, 0.03);
+      glass = mix(glass, stone > 0.5 && hallS > 0.5 ? mix(base, vec3(0.8), 0.3) : vec3(0.2, 0.14, 0.08), mull);
       if (eastW > 0.5) {
         // paper screens behind a fine wooden lattice, warm from within at night
         vec2 lat = vec2(fx / 0.24, fy / 0.3);
@@ -5575,12 +6033,15 @@ function markAt(x, z) {
 
 /* big map */
 const bigmap = $('bigmap'), bigcv = $('bigcv'), bctx = bigcv.getContext('2d');
-const BIG_RANGES = [6000, 12000, 24000, 48000];
-let bigIdx = 2, bigMeta = null;
+const BIG_RANGES = [400, 750, 1500, 3000, 6000, 12000, 24000, 48000];
+let bigIdx = 6, bigMeta = null, bigView = null, bigDrag = null, bigNoClick = false;
 const bigImg = document.createElement('canvas');
+const viewOf = () => bigView || { x: player.pos.x, z: player.pos.z };
+const fmtRange = m => m < 1000 ? m + ' m' : (m / 1000) + ' km';
 function openMap() {
   bigmap.hidden = false;
   if (document.pointerLockElement) document.exitPointerLock();
+  bigView = { x: player.pos.x, z: player.pos.z };
   requestBig();
   renderPinList();
   renderMapLists();
@@ -5588,36 +6049,37 @@ function openMap() {
 }
 function closeMap() { bigmap.hidden = true; }
 function requestBig() {
-  const range = BIG_RANGES[bigIdx];
-  const contour = range <= 6000 ? 50 : range <= 12000 ? 100 : range <= 24000 ? 200 : 400;
-  $('bm-range').textContent = (range / 1000) + ' km across';
+  const range = BIG_RANGES[bigIdx], V = viewOf();
+  const contour = range <= 1500 ? 10 : range <= 3000 ? 20 : range <= 6000 ? 50 : range <= 12000 ? 100 : range <= 24000 ? 200 : 400;
+  $('bm-range').textContent = fmtRange(range) + ' across';
   $('bm-contour').textContent = contour;
-  bigMeta = null;
-  queueMap({ type: 'map', purpose: 'big', gen, id: reqId++, x: player.pos.x, z: player.pos.z, range, res: 360, contour });
+  queueMap({ type: 'map', purpose: 'big', gen, id: reqId++, x: V.x, z: V.z, range, res: 360, contour });
 }
+// the survey is drawn around the view's centre: the last terrain image is stretched and slid into place while a new one is surveyed
 function drawBig() {
-  const w = bigcv.width, h = bigcv.height;
+  const w = bigcv.width, h = bigcv.height, range = BIG_RANGES[bigIdx], V = viewOf(), sc = w / range;
   bctx.fillStyle = '#0e1719';
   bctx.fillRect(0, 0, w, h);
   if (!bigMeta) {
     bctx.fillStyle = '#a3ada6';
     bctx.font = '500 20px "Chivo Mono", ui-monospace, monospace';
     bctx.textAlign = 'center';
-    bctx.fillText('Surveying ' + (BIG_RANGES[bigIdx] / 1000) + ' km of terrain…', w / 2, h / 2);
+    bctx.fillText('Surveying ' + fmtRange(range) + ' of terrain…', w / 2, h / 2);
     return;
   }
   bctx.imageSmoothingEnabled = true;
-  bctx.drawImage(bigImg, 0, 0, w, h);
-  const sc = w / bigMeta.range;
-  drawRoadLines(bctx, w, h, sc, bigMeta.x, bigMeta.z, bigMeta.roads, 2.4);
-  drawMarkers(bctx, w, h, sc, bigMeta.x, bigMeta.z, bigMeta.range * 0.72, 15);
-  const px = w / 2 + (player.pos.x - bigMeta.x) * sc, pz = h / 2 + (player.pos.z - bigMeta.z) * sc;
+  const iw = bigMeta.range * sc;
+  bctx.drawImage(bigImg, w / 2 + (bigMeta.x - bigMeta.range / 2 - V.x) * sc, h / 2 + (bigMeta.z - bigMeta.range / 2 - V.z) * sc, iw, iw);
+  drawRoadLines(bctx, w, h, sc, V.x, V.z, bigMeta.roads, range <= 1500 ? 5 : range <= 3000 ? 3.4 : 2.4);
+  drawPlaces(bctx, w, h, sc, V.x, V.z, range);
+  drawMarkers(bctx, w, h, sc, V.x, V.z, range * 0.72, 15);
+  const px = w / 2 + (player.pos.x - V.x) * sc, pz = h / 2 + (player.pos.z - V.z) * sc;
   bctx.save();
   bctx.translate(px, pz); bctx.rotate(-player.yaw);
   bctx.fillStyle = '#8fd6c4'; bctx.strokeStyle = '#0b2a24'; bctx.lineWidth = 3;
   bctx.beginPath(); bctx.moveTo(0, -14); bctx.lineTo(9, 10); bctx.lineTo(0, 5); bctx.lineTo(-9, 10); bctx.closePath(); bctx.stroke(); bctx.fill();
   bctx.restore();
-  const km = bigMeta.range >= 24000 ? 5000 : bigMeta.range >= 12000 ? 2000 : 1000;
+  const km = [50, 100, 200, 500, 1000, 2000, 5000].filter(m => m <= range / 5).pop() || 50;
   const bw = km * sc;
   bctx.fillStyle = 'rgba(9,15,17,0.75)';
   bctx.fillRect(16, h - 44, bw + 24, 30);
@@ -5625,24 +6087,52 @@ function drawBig() {
   bctx.fillRect(28, h - 24, bw, 3);
   bctx.font = '500 13px "Chivo Mono", ui-monospace, monospace';
   bctx.textAlign = 'left';
-  bctx.fillText((km / 1000) + ' km', 28, h - 40);
+  bctx.fillText(fmtRange(km), 28, h - 40);
+}
+function mapPoint(e) {
+  const r = bigcv.getBoundingClientRect(), range = BIG_RANGES[bigIdx], V = viewOf();
+  const u = (e.clientX - r.left) / r.width - 0.5, v = (e.clientY - r.top) / r.height - 0.5;
+  return { x: V.x + u * range, z: V.z + v * range, cx: (e.clientX - r.left) / r.width * bigcv.width, cy: (e.clientY - r.top) / r.height * bigcv.height };
 }
 bigcv.addEventListener('click', (e) => {
-  if (!bigMeta) return;
-  const r = bigcv.getBoundingClientRect();
-  const u = (e.clientX - r.left) / r.width - 0.5, v = (e.clientY - r.top) / r.height - 0.5;
-  const x = bigMeta.x + u * bigMeta.range, z = bigMeta.z + v * bigMeta.range;
-  if (mapMode === 'mark') { markAt(x, z); return; }
+  if (!bigMeta || bigNoClick) { bigNoClick = false; return; }
+  const P = mapPoint(e);
+  // a click on a building's icon goes to its door
+  const hit = placeHitAt(P.cx, P.cy);
+  if (hit && mapMode !== 'mark') { goPlace(hit); return; }
+  if (mapMode === 'mark') { markAt(hit ? hit.x : P.x, hit ? hit.z : P.z); return; }
   closeMap();
-  travelTo(x, z, null, 'the marked point');
+  travelTo(P.x, P.z, null, 'the marked point');
 });
 bigcv.addEventListener('contextmenu', (e) => {
   e.preventDefault();
   if (!bigMeta) return;
-  const r = bigcv.getBoundingClientRect();
-  const u = (e.clientX - r.left) / r.width - 0.5, v = (e.clientY - r.top) / r.height - 0.5;
-  markAt(bigMeta.x + u * bigMeta.range, bigMeta.z + v * bigMeta.range);
+  const P = mapPoint(e);
+  markAt(P.x, P.z);
 });
+// scroll to zoom about the cursor; drag to pan
+bigcv.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const ni = clamp(bigIdx + (e.deltaY > 0 ? 1 : -1), 0, BIG_RANGES.length - 1);
+  if (ni === bigIdx) return;
+  const P = mapPoint(e), V = viewOf(), k = BIG_RANGES[ni] / BIG_RANGES[bigIdx];
+  bigView = { x: P.x + (V.x - P.x) * k, z: P.z + (V.z - P.z) * k };
+  bigIdx = ni; requestBig(); drawBig(); renderPlaceList();
+}, { passive: false });
+bigcv.addEventListener('pointerdown', (e) => { if (e.button !== 0) return; bigNoClick = false; bigDrag = { id: e.pointerId, x: e.clientX, y: e.clientY, v: { ...viewOf() }, moved: false }; });
+bigcv.addEventListener('pointermove', (e) => {
+  if (!bigDrag || e.pointerId !== bigDrag.id) { bigcv.style.cursor = placeHitAt(mapPoint(e).cx, mapPoint(e).cy) ? 'pointer' : 'crosshair'; return; }
+  const dx = e.clientX - bigDrag.x, dy = e.clientY - bigDrag.y;
+  if (!bigDrag.moved && Math.hypot(dx, dy) < 6) return;
+  if (!bigDrag.moved) { bigDrag.moved = true; try { bigcv.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ } }
+  const r = bigcv.getBoundingClientRect(), mpp = BIG_RANGES[bigIdx] / r.width;
+  bigView = { x: bigDrag.v.x - dx * mpp, z: bigDrag.v.z - dy * mpp };
+  bigcv.style.cursor = 'grabbing';
+  drawBig();
+});
+const endBigDrag = (e) => { if (!bigDrag || e.pointerId !== bigDrag.id) return; if (bigDrag.moved) { bigNoClick = true; requestBig(); renderPlaceList(); bigcv.style.cursor = 'crosshair'; } bigDrag = null; };
+bigcv.addEventListener('pointerup', endBigDrag);
+bigcv.addEventListener('pointercancel', endBigDrag);
 
 function onMap(m) {
   if (m.gen !== gen) return;
@@ -5854,8 +6344,9 @@ $('m-walk').addEventListener('click', () => { if (!started) return beginJourney(
 $('b-map').addEventListener('click', () => { bigmap.hidden ? openMap() : closeMap(); });
 $('minimap-btn').addEventListener('click', openMap);
 $('bm-close').addEventListener('click', closeMap);
-$('bm-in').addEventListener('click', () => { if (bigIdx > 0) { bigIdx--; requestBig(); drawBig(); } });
-$('bm-out').addEventListener('click', () => { if (bigIdx < BIG_RANGES.length - 1) { bigIdx++; requestBig(); drawBig(); } });
+$('bm-in').addEventListener('click', () => { if (bigIdx > 0) { bigIdx--; requestBig(); drawBig(); renderPlaceList(); } });
+$('bm-out').addEventListener('click', () => { if (bigIdx < BIG_RANGES.length - 1) { bigIdx++; requestBig(); drawBig(); renderPlaceList(); } });
+$('bm-me').addEventListener('click', () => { bigView = { x: player.pos.x, z: player.pos.z }; requestBig(); drawBig(); renderPlaceList(); });
 bigmap.addEventListener('click', (e) => { if (e.target === bigmap) closeMap(); });
 $('b-settings').addEventListener('click', () => {
   const s = $('settings'); s.hidden = !s.hidden;
@@ -9896,11 +10387,13 @@ function updateLightPool() {
   }
   for (const I of dressed.values()) {
     const fr = houseFrame(I.H);
-    for (const [lx, ly, lz] of I.lightSpots) { const [x, z] = fr.toWorld(lx, lz); src.push([x, I.H.y + ly, z, (night ? 9 : 5) * (1 + fl), 10]); }
-    const [cx, cz] = fr.toWorld(0, 0); src.push([cx, I.H.y + 2.4, cz, night ? 4 : 2.5, 9]);
+    for (const [lx, ly, lz] of I.lightSpots) { const [x, z] = fr.toWorld(lx, lz); src.push([x, I.H.y + ly, z, (night ? 9 : 5) * (1 + fl), 10, 0, 0, I.H]); }
+    const [cx, cz] = fr.toWorld(0, 0); src.push([cx, I.H.y + 2.4, cz, night ? 4 : 2.5, 9, 0, 0, I.H]);
   }
   encLights(src);
-  src.sort((a, b) => Math.hypot(a[0] - p.x, a[2] - p.z) - Math.hypot(b[0] - p.x, b[2] - p.z));
+  // nearest first, but a light behind walls counts for less: out in the street the lamps win, indoors the room's own candles do
+  const far = q => Math.hypot(q[0] - p.x, q[2] - p.z) + (q[7] ? (q[7] === playerHouse ? 0 : 16) : playerHouse && q[5] ? 16 : 0);
+  src.sort((a, b) => far(a) - far(b));
   lightPool.forEach((L, i) => {
     const s = src[i];
     if (!s || Math.hypot(s[0] - p.x, s[2] - p.z) > 90) { L.intensity = 0; return; }
@@ -11093,7 +11586,7 @@ function encFight(a, dt, T) {
     return;
   }
   a.cool -= dt;
-  a.heading = turnToward(a.heading, want, dt * 7);
+  a.heading = turnToward(a.heading, dist > reach + 0.2 ? steerClear(a, want) : want, dt * 7);
   if (dist > reach + 0.2) {
     const sp = (tp ? 3.4 : 2.8) * (P.heavy ? 0.75 : 1) * (a.res.height < 1.3 ? 1.1 : 1);
     a.x += Math.sin(a.heading) * sp * dt; a.z += Math.cos(a.heading) * sp * dt; a.speed = sp; a.act = 'fightidle';
@@ -11153,7 +11646,7 @@ function updateEncPerson(a, dt) {
     if (a.fleeT > 0) {
       a.fleeT -= dt;
       const dx = a.x - p.x, dz = a.z - p.z, d = Math.hypot(dx, dz) || 1;
-      if (d < 40) { const sp = a.res.height < 1.4 ? 3.4 : 3.8; a.heading = turnToward(a.heading, Math.atan2(dx, dz), dt * 6); a.x += Math.sin(a.heading) * sp * dt; a.z += Math.cos(a.heading) * sp * dt; a.speed = sp; }
+      if (d < 40) { const sp = a.res.height < 1.4 ? 3.4 : 3.8; a.heading = turnToward(a.heading, steerClear(a, Math.atan2(dx, dz)), dt * 7); a.x += Math.sin(a.heading) * sp * dt; a.z += Math.cos(a.heading) * sp * dt; a.speed = sp; }
       else { a.speed = 0; a.act = 'cry'; }
     }
     else if (T) encFight(a, dt, T);
@@ -16548,4 +17041,1220 @@ dressHouse = function (t, H) {
 // open ironwork: a top rail, a bottom rail and bars between, for balconies
 BLD_GEO.railing = (() => { const parts = [{ g: new THREE.BoxGeometry(1, 0.05, 1), m: M(0, 0.97, 0), c: WHITE, leaf: 1 }, { g: new THREE.BoxGeometry(1, 0.04, 1), m: M(0, 0.06, 0), c: WHITE, leaf: 1 }]; for (let i = 0; i <= 10; i++) parts.push({ g: new THREE.BoxGeometry(0.018, 0.92, 0.6), m: M(-0.5 + i * 0.1, 0.5, 0), c: WHITE, leaf: 1 }); return geoFrom(parts, false); })();
 /* ==== GRAND TOWNS END ==== */
+
+/* =====================================================================
+   CASINOS: a palace of chance in the great cities, the richer cities and the seaside resorts, with tables you can
+   sit down at and play for real gold: roulette, blackjack, hazard (chō-han in the east), draw poker and the great
+   wheel. The little gaming houses deal cards and dice too, for smaller stakes.
+   ===================================================================== */
+BIG_HALLS.add('casino');
+LABEL_SUB.casino = 'Casino · open noon till 4 am';
+const RL_ORDER = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26];
+const RL_RED = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
+const rlColor = n => n === 0 ? 'green' : RL_RED.has(n) ? 'red' : 'black';
+const GAME_NAMES = { roulette: 'Roulette', blackjack: 'Blackjack', hazard: 'Hazard', chohan: 'Chō-han', poker: 'Draw poker', wheel: 'The Great Wheel', baccarat: 'Baccarat' };
+const GAME_PROMPT = { roulette: 'Place your bets at the roulette wheel', blackjack: 'Sit down at the blackjack table', hazard: 'Join the game of hazard', chohan: 'Kneel at the chō-han mat', poker: 'Sit down to draw poker', wheel: 'Try your luck at the great wheel', baccarat: 'Sit down at the baccarat table' };
+const CASINO_JOBS = new Set(['Croupier', 'Cashier', 'Barkeep']);
+// the great wheel: 54 segments, the small prizes many and the crown only twice
+const WHEEL_SEGS = (() => {
+  const counts = [[1, 24], [2, 15], [5, 7], [10, 4], [20, 2], [40, 2]], segs = new Array(54).fill(0);
+  for (const [v, c] of counts.slice().reverse()) for (let i = 0; i < c; i++) { let p = Math.round((i + 0.5) * 54 / c + v * 1.7) % 54; while (segs[p]) p = (p + 1) % 54; segs[p] = v; }
+  return segs;
+})();
+const WHEEL_COL = { 1: '#e8dcc0', 2: '#3a6ab0', 5: '#2a8a4a', 10: '#b0302a', 20: '#7a3a9a', 40: '#d8a830' };
+
+/* ---------- where everything stands in the hall, in the building's own frame (+z toward the doors) ---------- */
+function casinoPlan(H) {
+  if (H.cplan) return H.cplan;
+  const [W, D] = roomDims(H), east = H.style === 'eastern', T = [];
+  for (const sd of [-1, 1]) T.push({ game: 'roulette', x: sd * 5.2, z: -2.0, w: 3.0, d: 1.5, sd, limit: 2000, dealer: [sd * 4.2, -3.1, 0, 'idle'],
+    spots: [[sd * 3.9, -0.85, Math.PI, 'idle'], [sd * 4.9, -0.85, Math.PI, 'idle'], [sd * 5.9, -0.85, Math.PI, 'idle']] });
+  for (const sd of [-1, 1]) { const x = sd * 7, z = 3.0; T.push({ game: sd < 0 ? 'blackjack' : 'baccarat', x, z: z + 0.6, r: 1.3, half: true, cz: z, limit: 1000, dealer: [x, z - 0.55, 0, 'idle'], spots: [-0.9, 0, 0.9].map(a => [x + Math.sin(a) * 1.75, z + Math.cos(a) * 1.75, a + Math.PI, 'sit']) }); }
+  T.push({ game: east ? 'chohan' : 'hazard', x: -3.2, z: 3.6, w: 2.6, d: 1.3, limit: 1000, dealer: [-3.2, 2.4, 0, east ? 'sitlow' : 'idle'], spots: east ? [[-3.9, 4.65, Math.PI, 'sitlow'], [-2.5, 4.65, Math.PI, 'sitlow']] : [[-3.9, 4.75, Math.PI, 'idle'], [-2.5, 4.75, Math.PI, 'idle']] });
+  T.push({ game: 'poker', x: 3.2, z: 3.6, r: 0.95, limit: 500, dealer: [3.2, 2.2, 0, 'idle'], spots: [1.25, 0.4, -0.4, -1.25].map(a => [3.2 + Math.sin(a) * 1.45, 3.6 + Math.cos(a) * 1.45, a + Math.PI, 'sit']) });
+  T.push({ game: 'wheel', x: 0, z: -D / 2 + 0.5, wall: true, limit: 1000, dealer: [2.3, -D / 2 + 1.3, -0.5, 'idle'], spots: [] });
+  const cage = [-W / 2 + 2.3, -D / 2 + 1.1, 0, 'sell'], bar = [W / 2 - 2.3, -D / 2 + 1.1, 0, 'sell'];
+  const stools = [0, 1, 2].map(i => [W / 2 - 3.4 + i * 1.0, -D / 2 + 2.85, Math.PI, 'sit']);
+  H.cplan = { W, D, tables: T, cage, bar, stools };
+  return H.cplan;
+}
+// the little gaming house: four square tables, dice at two, cards at the others
+function gamingPlan(H) {
+  if (H.gplan) return H.gplan;
+  const [W, D] = roomDims(H), dice = H.style === 'eastern' ? 'chohan' : 'hazard';
+  H.gplan = [[-W / 2 + 2, -0.8, dice], [1, -0.8, 'blackjack'], [-W / 2 + 2, D / 2 - 1.8, 'poker'], [1, D / 2 - 1.8, dice]].map(([x, z, game]) => ({ game, x, z, w: 1.1, d: 1.1, limit: 100, small: true }));
+  return H.gplan;
+}
+const tablesOf = H => H.kind === 'casino' ? casinoPlan(H).tables : H.kind === 'gaminghouse' ? gamingPlan(H) : [];
+function tableDist(tb, lx, lz) {
+  if (tb.wall) return Math.hypot(lx - tb.x, lz - (tb.z + 1.6)) - 0.6;
+  if (tb.r) return Math.hypot(lx - tb.x, lz - tb.z) - tb.r;
+  return Math.hypot(Math.max(0, Math.abs(lx - tb.x) - tb.w / 2), Math.max(0, Math.abs(lz - tb.z) - tb.d / 2));
+}
+
+/* ---------- who works the floor, and who comes to play ---------- */
+const _grandSpotsC = grandSpots;
+grandSpots = function (H) {
+  if (H.kind !== 'casino') return _grandSpotsC(H);
+  const P = casinoPlan(H), seats = [];
+  for (const tb of P.tables) seats.push(...tb.spots);
+  seats.push(...P.stools);
+  return { keeper: P.cage, posts: [...P.tables.map(tb => tb.dealer), P.cage, P.bar], seats, beds: [] };
+};
+Object.assign(JOB_STATION, { Croupier: 'post', Cashier: 'post', Barkeep: 'post' });
+const _residentsOfC = residentsOf;
+residentsOf = function (s) {
+  const list = _residentsOfC(s);
+  if (list.casinoDone) return list;
+  list.casinoDone = true;
+  if (!G.settlementLayout(s).houses.some(h => h.kind === 'casino')) return list;
+  const free = list.filter(q => q.i >= 10 && q.job !== 'Child' && ['Farmer', 'Idler', 'Retired', 'Herder', 'Shepherd', 'Crofter', 'Weaver', 'Potter', 'Carpenter', 'Scribe', 'Fisher', 'Miner', 'Holidaymaker', 'Woodcutter', 'Taro farmer', 'Date farmer'].includes(q.job));
+  let fi = 0;
+  const take = (job, n, dress) => { for (let k = 0; k < n && fi < free.length; k++) { const q = free[fi++]; q.job = job; dress(q); } };
+  const east = s.style === 'eastern';
+  take('Croupier', 7, q => { q.shirt = east ? 0x1a1a22 : 0xf0ece2; q.pants = 0x16161a; q.robe = east; });
+  take('Cashier', 1, q => { q.shirt = 0x2a2a30; q.pants = 0x16161a; });
+  take('Barkeep', 1, q => { q.shirt = 0x6a1420; q.pants = 0x16161a; q.robe = false; });
+  return list;
+};
+const casinoOf = t => t && t.layout ? (t.casinoH !== undefined ? t.casinoH : (t.casinoH = t.layout.houses.find(h => h.kind === 'casino') || null)) : null;
+const isGambler = a => a.res.job !== 'Child' && a.idx % 5 === 3 && !CASINO_JOBS.has(a.res.job) && !ROYAL.has(a.res.job) && !['Guard', 'Innkeeper', 'Soldier', 'Knight', 'Patient', 'Monk'].includes(a.res.job);
+const _assignRoutinesC = assignRoutines;
+assignRoutines = function (t) {
+  _assignRoutinesC(t);
+  const C = casinoOf(t);
+  if (!C) return;
+  let k = 0;
+  for (const a of t.actors) {
+    const j = a.res.job;
+    if (!CASINO_JOBS.has(j)) continue;
+    a.work = { type: 'post', house: C, k: j === 'Cashier' ? 7 : j === 'Barkeep' ? 8 : Math.min(6, k++) };
+    (C.keys || (C.keys = new Set())).add(a); C.staffed = true;
+  }
+};
+// the croupiers work from noon till the doors close at four; some townsfolk while away the evening at the tables
+const _goalForC = goalFor;
+goalFor = function (a) {
+  const C = casinoOf(a.town), job = a.res.job;
+  if (C && CASINO_JOBS.has(job)) return tod >= 12.5 || tod < 3.75 ? 'work' : tod >= 4.5 && tod < 11 ? 'inside' : 'social';
+  const g = _goalForC(a);
+  if (C && isGambler(a) && (tod >= 19 || tod < 1.5) && (g === 'inn' || g === 'social' || g === 'inside')) return 'inn';
+  return g;
+};
+const _targetForC = targetFor;
+targetFor = function (a, goal) {
+  if ((goal === 'inn' || goal === 'social') && isGambler(a)) {
+    const C = casinoOf(a.town);
+    if (C && !houseLocked(a.town, C)) { const seats = houseSpots(C).seats, q = seats[(a.idx * 5) % seats.length]; return roomTarget(C, q, q[3] || 'sit'); }
+  }
+  return _targetForC(a, goal);
+};
+// open from noon until four in the morning (unless someone has picked the lock)
+const _houseLockedC = houseLocked;
+houseLocked = function (t, H) {
+  if (H.kind !== 'casino') return _houseLockedC(t, H);
+  if (!(tod >= 4 && tod < 12)) return false;
+  const u = t && t.unlocked && t.unlocked.get(H.id);
+  if (u && u > simTime) return false;
+  return !t || picked.get(hkey(t, H)) !== nightId();
+};
+Object.assign(JOB_LINES, {
+  Croupier: ['Place your bets. No more bets. That is the whole of my job, and I say it beautifully.', 'The wheel has no memory, friend. Whatever the gentleman in the hat tells you.', 'I have watched a lord lose a castle at that table. He took it well. His wife did not.'],
+  Cashier: ['Gold for chips, chips for gold. Mostly the first.', 'Count it at the window. Once it leaves the window it is the house\'s business, not mine.'],
+  Barkeep: ['Wine for the winners, brandy for the losers. Most nights I pour brandy.', 'The house keeps the drinks cheap. The house knows why.'],
+});
+const _jobOptsC = jobOpts;
+jobOpts = function (a) {
+  const out = _jobOptsC(a), job = a.res.job, H = a.work && a.work.house;
+  if (job === 'Croupier' && H && H.kind === 'casino') { const tb = casinoPlan(H).tables[a.work.k]; if (tb) out.unshift([`Deal me in (${GAME_NAMES[tb.game]})`, () => { closeDialog(); openCasino(a.town, H, tb); }]); }
+  if (job === 'Dealer' && H && H.kind === 'gaminghouse') out.unshift(['Deal me in (blackjack)', () => { closeDialog(); openCasino(a.town, H, gamingPlan(H).find(tb => tb.game === 'blackjack')); }]);
+  if (job === 'Cashier') out.push(['How are the games played?', () => dlgRoot(pickOne([
+    'Roulette: put your chips on a number, a colour, odd or even, and the wheel decides. A single number pays thirty-five to one. Blackjack: beat the dealer to twenty-one without going over; a natural pays three to two.',
+    'Hazard is the caster\'s game: seven or eleven wins at once, two, three or twelve loses, anything else is your point and you must throw it again before a seven. The great wheel pays whatever number stops at the pointer, forty to one for the crown.',
+    'Draw poker: five cards, keep what you like, draw the rest. A pair of jacks gets your stake back; a royal flush pays two hundred and fifty to one. I have seen it once. I still dream about it.',
+    'Baccarat: bet on the player\'s hand, the banker\'s, or a tie. Whichever comes nearer nine wins; tens and faces count nothing. The banker pays even money less a twentieth, a tie pays eight to one.']))]);
+  if (job === 'Barkeep') out.push(['A glass of wine (3 gold)', () => { if (game.gold < 3) return dlgRoot('Three gold, friend. The wine is cheap, not free.'); game.gold -= 3; healPlayer(12); saveGame(); dlgRoot(pickOne(['On the house? No. But it is very good.', 'To luck. May she stay the night.', 'Drink slowly. The tables will still be there.'])); }]);
+  return out;
+};
+
+/* ---------- the hall itself: as grand inside as it is out ---------- */
+const feltMat = amat(0x17603a), railMat = new THREE.MeshStandardMaterial({ color: 0x3a1c10, roughness: 0.45 }), mirrorMat = new THREE.MeshStandardMaterial({ color: 0xd8e0e6, roughness: 0.06, metalness: 1 });
+const CHIP_HEX = [0xe8e4d8, 0xb01e24, 0x1a7a3a, 0x1a1a1a, 0x6a2a9a];
+let rlWheelTex = null, rlLayoutTex = null, bigWheelTex = null, frescoTex = null;
+function drawRWheel(c, cx, cy, R, ang, ball) {
+  const n = 37, st = Math.PI * 2 / n;
+  c.save(); c.translate(cx, cy);
+  c.fillStyle = '#3a200e'; c.beginPath(); c.arc(0, 0, R, 0, 7); c.fill();
+  const bowl = c.createRadialGradient(0, 0, R * 0.7, 0, 0, R * 0.97); bowl.addColorStop(0, '#7a4a24'); bowl.addColorStop(1, '#4a2a12'); c.fillStyle = bowl; c.beginPath(); c.arc(0, 0, R * 0.96, 0, 7); c.fill();
+  c.fillStyle = '#23140a'; c.beginPath(); c.arc(0, 0, R * 0.82, 0, 7); c.fill();
+  c.rotate(ang);
+  for (let i = 0; i < n; i++) {
+    const a0 = -Math.PI / 2 + (i - 0.5) * st, col = { red: '#b0141c', black: '#141414', green: '#0e7a38' }[rlColor(RL_ORDER[i])];
+    c.fillStyle = col; c.beginPath(); c.arc(0, 0, R * 0.8, a0, a0 + st); c.arc(0, 0, R * 0.52, a0 + st, a0, true); c.closePath(); c.fill();
+  }
+  c.strokeStyle = '#d8b060'; c.lineWidth = Math.max(1, R * 0.01);
+  for (let i = 0; i < n; i++) { const a0 = -Math.PI / 2 + (i - 0.5) * st; c.beginPath(); c.moveTo(Math.cos(a0) * R * 0.52, Math.sin(a0) * R * 0.52); c.lineTo(Math.cos(a0) * R * 0.8, Math.sin(a0) * R * 0.8); c.stroke(); }
+  c.beginPath(); c.arc(0, 0, R * 0.66, 0, 7); c.stroke();
+  c.fillStyle = '#f4efe2'; c.font = `700 ${Math.round(R * 0.085)}px ui-sans-serif, system-ui, sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle';
+  for (let i = 0; i < n; i++) { c.save(); c.rotate(i * st); c.fillText(String(RL_ORDER[i]), 0, -R * 0.73); c.restore(); }
+  const cone = c.createRadialGradient(-R * 0.12, -R * 0.12, R * 0.05, 0, 0, R * 0.52); cone.addColorStop(0, '#f0d890'); cone.addColorStop(0.6, '#a87a30'); cone.addColorStop(1, '#5a3a16'); c.fillStyle = cone; c.beginPath(); c.arc(0, 0, R * 0.52, 0, 7); c.fill();
+  c.strokeStyle = '#e8c878'; c.lineWidth = R * 0.035; c.lineCap = 'round';
+  for (let k = 0; k < 4; k++) { c.rotate(Math.PI / 2); c.beginPath(); c.moveTo(0, 0); c.lineTo(0, -R * 0.26); c.stroke(); c.fillStyle = '#e8c878'; c.beginPath(); c.arc(0, -R * 0.27, R * 0.035, 0, 7); c.fill(); }
+  c.fillStyle = '#f0d890'; c.beginPath(); c.arc(0, 0, R * 0.07, 0, 7); c.fill();
+  c.restore();
+  if (ball) { const [ba, br] = ball, x = cx + Math.cos(ba) * br, y = cy + Math.sin(ba) * br, gr = c.createRadialGradient(x - R * 0.01, y - R * 0.01, 0, x, y, R * 0.035); gr.addColorStop(0, '#ffffff'); gr.addColorStop(1, '#b8b8b0'); c.fillStyle = gr; c.beginPath(); c.arc(x, y, R * 0.032, 0, 7); c.fill(); }
+}
+function drawBigWheel(c, cx, cy, R, ang) {
+  const n = 54, st = Math.PI * 2 / n;
+  c.save(); c.translate(cx, cy); c.rotate(ang);
+  for (let i = 0; i < n; i++) {
+    const a0 = -Math.PI / 2 + (i - 0.5) * st, v = WHEEL_SEGS[i];
+    c.fillStyle = WHEEL_COL[v]; c.beginPath(); c.moveTo(0, 0); c.arc(0, 0, R * 0.95, a0, a0 + st); c.closePath(); c.fill();
+    c.strokeStyle = '#5a3a14'; c.lineWidth = R * 0.006; c.stroke();
+  }
+  c.textAlign = 'center'; c.textBaseline = 'middle';
+  for (let i = 0; i < n; i++) { const v = WHEEL_SEGS[i]; c.save(); c.rotate(i * st); c.fillStyle = v === 1 || v === 40 ? '#2a1a08' : '#fbf6ea'; c.font = `800 ${Math.round(R * (v === 40 ? 0.075 : 0.07))}px ui-sans-serif, system-ui, sans-serif`; c.fillText(v === 40 ? '♛' : String(v), 0, -R * 0.83); c.restore(); }
+  c.strokeStyle = '#d8b060'; c.lineWidth = R * 0.05; c.beginPath(); c.arc(0, 0, R * 0.96, 0, 7); c.stroke();
+  c.fillStyle = '#e8c878'; for (let i = 0; i < n; i++) { const a = -Math.PI / 2 + (i - 0.5) * st; c.beginPath(); c.arc(Math.cos(a) * R * 0.955, Math.sin(a) * R * 0.955, R * 0.018, 0, 7); c.fill(); }
+  const hub = c.createRadialGradient(-R * 0.05, -R * 0.05, 0, 0, 0, R * 0.62); hub.addColorStop(0, '#6a1a22'); hub.addColorStop(1, '#3a0a10'); c.fillStyle = hub; c.beginPath(); c.arc(0, 0, R * 0.62, 0, 7); c.fill();
+  c.strokeStyle = '#d8b060'; c.lineWidth = R * 0.02; c.beginPath(); c.arc(0, 0, R * 0.62, 0, 7); c.stroke();
+  for (let k = 0; k < 8; k++) { c.rotate(Math.PI / 4); c.beginPath(); c.moveTo(0, R * 0.1); c.lineTo(0, R * 0.58); c.stroke(); }
+  c.fillStyle = '#e8c878'; c.beginPath(); c.arc(0, 0, R * 0.1, 0, 7); c.fill();
+  c.restore();
+}
+function casinoTex(kind) {
+  if (kind === 'rwheel') return rlWheelTex || (rlWheelTex = canvasTex(512, 512, 811, (g, w) => drawRWheel(g, w / 2, w / 2, w / 2, 0)));
+  if (kind === 'bigwheel') return bigWheelTex || (bigWheelTex = canvasTex(512, 512, 812, (g, w) => { g.fillStyle = '#3a200e'; g.fillRect(0, 0, w, w); drawBigWheel(g, w / 2, w / 2, w / 2, 0); }));
+  if (kind === 'rlayout') return rlLayoutTex || (rlLayoutTex = canvasTex(512, 320, 813, (g, w, h) => {
+    g.fillStyle = '#17603a'; g.fillRect(0, 0, w, h); g.strokeStyle = '#e8e2cc'; g.lineWidth = 2; g.fillStyle = '#f4efe2'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = '700 20px sans-serif';
+    const x0 = 44, cw = 36, rh = 62;
+    g.strokeRect(4, 6, x0 - 4, rh * 3); g.fillText('0', 24, 6 + rh * 1.5);
+    for (let c = 0; c < 12; c++) for (let r = 0; r < 3; r++) { const n = c * 3 + 3 - r, x = x0 + c * cw, y = 6 + r * rh; g.strokeRect(x, y, cw, rh); g.fillStyle = RL_RED.has(n) ? '#b0141c' : '#141414'; g.beginPath(); g.arc(x + cw / 2, y + rh / 2, 14, 0, 7); g.fill(); g.fillStyle = '#f4efe2'; g.fillText(String(n), x + cw / 2, y + rh / 2); }
+    g.font = '700 15px sans-serif';
+    for (let d = 0; d < 3; d++) { g.strokeRect(x0 + d * cw * 4, 6 + rh * 3, cw * 4, 48); g.fillText(['1st 12', '2nd 12', '3rd 12'][d], x0 + d * cw * 4 + cw * 2, 30 + rh * 3); }
+    ['1–18', 'EVEN', '', '', 'ODD', '19–36'].forEach((t, i) => { const x = x0 + i * cw * 2, y = 54 + rh * 3; g.strokeRect(x, y, cw * 2, 48); if (t) g.fillText(t, x + cw, y + 24); else { g.fillStyle = i === 2 ? '#b0141c' : '#141414'; g.beginPath(); g.moveTo(x + cw, y + 8); g.lineTo(x + cw + 20, y + 24); g.lineTo(x + cw, y + 40); g.lineTo(x + cw - 20, y + 24); g.fill(); g.fillStyle = '#f4efe2'; } });
+    for (let r = 0; r < 3; r++) { g.strokeRect(x0 + cw * 12, 6 + r * rh, w - x0 - cw * 12 - 4, rh); g.fillText('2:1', x0 + cw * 12 + 18, 6 + r * rh + rh / 2); }
+  }));
+  if (kind === 'fresco') return frescoTex || (frescoTex = canvasTex(512, 512, 814, (g, w, h, r) => {
+    const sky = g.createRadialGradient(w / 2, h / 2, 20, w / 2, h / 2, w * 0.7); sky.addColorStop(0, '#f4e2b8'); sky.addColorStop(0.45, '#9ab8d8'); sky.addColorStop(1, '#5a7aa8'); g.fillStyle = sky; g.fillRect(0, 0, w, h);
+    for (let i = 0; i < 60; i++) { const x = r() * w, y = r() * h, s = 20 + r() * 50; g.fillStyle = `rgba(255,250,240,${0.18 + r() * 0.25})`; g.beginPath(); g.ellipse(x, y, s, s * 0.55, r() * 3, 0, 7); g.fill(); }
+    for (let i = 0; i < 5; i++) { const a = i / 5 * 6.283 + 0.3, x = w / 2 + Math.cos(a) * w * 0.3, y = h / 2 + Math.sin(a) * h * 0.3; g.fillStyle = '#e8c8a0'; g.beginPath(); g.ellipse(x, y, 9, 14, a, 0, 7); g.fill(); g.fillStyle = ['#a02a2a', '#2a4aa0', '#d8b060', '#2a7a4a', '#7a3a9a'][i]; g.beginPath(); g.ellipse(x + 6, y + 14, 16, 10, a + 0.8, 0, 7); g.fill(); g.fillStyle = '#f8f4ea'; g.beginPath(); g.ellipse(x - 14, y - 4, 12, 5, a - 0.6, 0, 7); g.fill(); }
+    g.strokeStyle = '#c8a040'; g.lineWidth = 18; g.strokeRect(9, 9, w - 18, h - 18); g.lineWidth = 6; g.beginPath(); g.arc(w / 2, h / 2, w * 0.2, 0, 7); g.stroke();
+    g.strokeStyle = '#8a6a2a'; g.lineWidth = 3; g.strokeRect(28, 28, w - 56, h - 56);
+  }));
+}
+function chipStack(g, x, y, z, n, hex) { for (let i = 0; i < n; i++) mesh(g, 'cyl', amat(hex), 0.04, 0.012, 0.04, x, y + 0.006 + i * 0.013, z); }
+function cardsOn(g, list, y) { const cm = amat(0xf4efe2); for (const [x, z, ry] of list) mesh(g, 'box', cm, 0.07, 0.004, 0.1, x, y, z, 0, ry, 0); }
+function casinoChair(I, g, x, z, rot, east) {
+  if (east) { box(g, 0.55, 0.08, 0.55, x, 0.14, z, amat(0x6a1a14)); return; }
+  stool(I, x, z); box(g, 0.4, 0.07, 0.4, x, 0.52, z, amat(0x7a1020));
+  const bk = new THREE.Group(); bk.position.set(x - Math.sin(rot) * 0.19, 0, z - Math.cos(rot) * 0.19); bk.rotation.y = rot; g.add(bk);
+  box(bk, 0.38, 0.5, 0.05, 0, 0.78, 0, wood()); box(bk, 0.3, 0.36, 0.02, 0, 0.8, 0.03, amat(0x7a1020));
+}
+function dressCasino(t, H) {
+  const east = H.style === 'eastern', HT = H.h, P = casinoPlan(H), r = G.mkRng((t.s.seed + H.id * 977) >>> 0);
+  const { I, g, W, D } = roomShell(H, east ? imat('tatami', H.w / 2, H.dp) : imat('marble', H.w / 2, H.dp / 2));
+  I.tables = P.tables; I.rWheels = [];
+  const carpet = amat(east ? 0x5a1812 : 0x7a1020), trim = east ? amat(0x9a2a1e) : goldMat;
+  const flat = (w, d, x, y, z, m) => { const p = new THREE.Mesh(new THREE.PlaneGeometry(w, d), m); p.rotation.x = -Math.PI / 2; p.position.set(x, y, z); g.add(p); return p; };
+  flat(2.2, D - 1.6, 0, 0.13, 0.6, carpet);
+  if (!east) for (const sd of [-1, 1]) flat(W / 2 - 2.4, D - 5.2, sd * (W / 4 + 0.6), 0.125, 0.9, imat('rug', 2, 2));
+  // the walls: columns to the roof with a gallery between them, red silk and gilt mirrors below, a painted sky overhead
+  if (east) {
+    eastRoom(g, W, D, HT);
+    const lac = amat(0x8a1e16);
+    for (const sd of [-1, 1]) for (const z of [-D / 2 + 0.5, -2.4, 2.4, D / 2 - 0.5]) { box(g, 0.45, HT, 0.45, sd * (W / 2 - 0.45), HT / 2, z, lac); solid(I, sd * (W / 2 - 0.45), z, 0.5, 0.5); }
+    for (let x = -W / 2 + 1.5; x < W / 2; x += 3) box(g, 0.3, 0.4, D, x, HT - 0.4, 0, wood());
+    const cl = new THREE.Mesh(new THREE.PlaneGeometry(W, D), imat('darkplanks', W / 3, D / 3, { side: THREE.DoubleSide })); cl.rotation.x = Math.PI / 2; cl.position.y = HT - 0.05; g.add(cl);
+    for (const [x, z] of [[-5.2, -2], [5.2, -2], [-5, 3.4], [5, 3.4], [0, 0.5], [0, -4], [-8, 0.5], [8, 0.5]]) { paperLantern(I, g, x, HT - 3.2, z); paperLantern(I, g, x + 0.7, HT - 3.8, z + 0.4); }
+  } else {
+    const col = statueMat;
+    for (const sd of [-1, 1]) {
+      for (const z of [-D / 2 + 0.55, -2.4, 2.4, D / 2 - 0.55]) {
+        const x = sd * (W / 2 - 0.5);
+        mesh(g, 'cyl', col, 0.75, HT - 1, 0.75, x, (HT - 1) / 2, z); mesh(g, 'box', goldMat, 0.95, 0.5, 0.95, x, HT - 0.9, z); mesh(g, 'box', col, 0.95, 0.35, 0.95, x, 0.17, z); solid(I, x, z, 0.8, 0.8);
+      }
+      // the gallery along each side wall, with a gilded balustrade
+      const gx = sd * (W / 2 - 0.7);
+      box(g, 1.4, 0.3, D - 0.4, gx, 4.3, 0, wood()); box(g, 1.44, 0.1, D - 0.4, gx, 4.48, 0, goldMat);
+      box(g, 0.08, 0.08, D - 0.4, sd * (W / 2 - 1.4), 5.4, 0, goldMat);
+      const bal = new THREE.InstancedMesh(AGEO.cyl, goldMat, Math.floor((D - 0.6) / 0.3)), m4 = new THREE.Matrix4();
+      for (let i = 0; i < bal.count; i++) { m4.makeScale(0.06, 0.9, 0.06); m4.setPosition(sd * (W / 2 - 1.4), 4.95, -D / 2 + 0.45 + i * 0.3); bal.setMatrixAt(i, m4); }
+      g.add(bal);
+      // red silk and tall mirrors between the columns
+      for (const [z0, z1] of [[-D / 2 + 0.95, -2.8], [-2.0, 2.0], [2.8, D / 2 - 0.95]]) {
+        const z = (z0 + z1) / 2, len = z1 - z0;
+        plane(g, len, 4.0, sd * (W / 2 - 0.06), 2.1, z, -sd * Math.PI / 2, amat(0x6a0c16));
+        goldFrame(g, Math.min(1.3, len - 0.8), 2.2, sd * (W / 2 - 0.1), 2.2, z, -sd * Math.PI / 2, mirrorMat);
+        plane(g, len, 2.8, sd * (W / 2 - 0.06), 7.2, z, -sd * Math.PI / 2, bannerMatG());
+      }
+    }
+    // a painted sky on the ceiling
+    const fr = new THREE.Mesh(new THREE.PlaneGeometry(W, D), new THREE.MeshStandardMaterial({ map: casinoTex('fresco'), roughness: 0.9 })); fr.rotation.x = Math.PI / 2; fr.position.y = HT - 0.08; g.add(fr);
+    // chandeliers over every table, and the greatest over the middle of the floor
+    for (const [x, z] of [[-5.2, -2], [5.2, -2], [-5, 3.4], [5, 3.4]]) chandelier(I, g, x, HT - 3.6, z, 1.0, 12);
+    chandelier(I, g, 0, HT - 4.2, 0.4, 1.7, 20); chandelier(I, g, 0, HT - 3.4, 0.4, 1.0, 10);
+    for (let i = 0; i < 16; i++) { const a = i / 16 * 6.283; mesh(g, 'sph', glowMat(0xfff2d8), 0.07, 0.12, 0.07, Math.cos(a) * 1.7, HT - 4.45, 0.4 + Math.sin(a) * 1.7); }
+    for (const sd of [-1, 1]) for (const z of [-3.6, 0, 3.6]) sconce(I, g, sd * (W / 2 - 0.2), 2.9, z);
+    // gilded figures by the doors, a grand painting over the wheel
+    for (const sd of [-1, 1]) { statue(I, g, sd * (W / 2 - 1.6), D / 2 - 1.1, sd * 0.6 + Math.PI, 1.05, 'raise', goldMat, true); solid(I, sd * (W / 2 - 1.6), D / 2 - 1.1, 0.8, 0.8); }
+    goldFrame(g, 5.2, 2.6, 0, 7.6, -D / 2 + 0.08, 0, paintingMat(r));
+  }
+  // roulette: a long table, the layout in felt and the wheel at the far end
+  const rw = new THREE.MeshStandardMaterial({ map: casinoTex('rwheel'), roughness: 0.35 }), lay = new THREE.MeshStandardMaterial({ map: casinoTex('rlayout'), roughness: 0.95 });
+  for (const tb of P.tables) {
+    const { x, z } = tb;
+    if (tb.game === 'roulette') {
+      const sd = tb.sd;
+      box(g, tb.w, 0.72, tb.d - 0.12, x, 0.36, z, railMat); box(g, tb.w + 0.1, 0.06, tb.d + 0.02, x, 0.75, z, railMat);
+      // the wheel sits at the aisle end of the table, the zero beside it, the numbers reading the right way up for the players
+      const L = flat(1.9, 1.2, x + sd * 0.45, 0.785, z, lay); L.rotation.z = sd > 0 ? 0 : Math.PI;
+      box(g, 1.0, 0.02, tb.d - 0.2, x - sd * 1.0, 0.785, z, feltMat);
+      for (const [ex, ew] of [[x, tb.w + 0.1]]) for (const s2 of [-1, 1]) box(g, ew, 0.06, 0.08, ex, 0.81, z + s2 * (tb.d / 2 - 0.02), railMat);
+      const wx = x - sd * 1.0, bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.46, 0.14, 32), railMat); bowl.position.set(wx, 0.86, z); g.add(bowl);
+      const pv = new THREE.Group(); pv.position.set(wx, 0.94, z); g.add(pv);
+      const wh = new THREE.Mesh(new THREE.CylinderGeometry(0.43, 0.43, 0.04, 40), [goldMat, rw, rw]); pv.add(wh);
+      mesh(pv, 'cone', goldMat, 0.08, 0.12, 0.08, 0, 0.08, 0);
+      I.rWheels.push({ tb, pv, v: 0.25, base: 0.25 });
+      for (let i = 0; i < 5; i++) chipStack(g, x + sd * (0.3 + i * 0.25), 0.79, z + (r() - 0.5) * 0.6, 2 + Math.floor(r() * 5), CHIP_HEX[i]);
+      box(g, 0.5, 0.06, 0.2, x - sd * 1.0, 0.82, z - tb.d / 2 + 0.2, railMat); for (let i = 0; i < 4; i++) chipStack(g, x - sd * (0.8 + i * 0.12), 0.85, z - tb.d / 2 + 0.2, 6, CHIP_HEX[i]);
+      solid(I, x, z, tb.w + 0.1, tb.d);
+    } else if (tb.game === 'blackjack' || tb.game === 'baccarat') {
+      const cz = tb.cz, half = (rr, h) => new THREE.CylinderGeometry(rr, rr, h, 28, 1, false, -Math.PI / 2, Math.PI);
+      const rim = new THREE.Mesh(half(1.34, 0.1), railMat); rim.position.set(x, 0.74, cz); g.add(rim);
+      const top = new THREE.Mesh(half(1.22, 0.1), feltMat); top.position.set(x, 0.76, cz); g.add(top);
+      box(g, 2.68, 0.1, 0.1, x, 0.76, cz, railMat); mesh(g, 'cyl', railMat, 0.5, 0.7, 0.5, x, 0.35, cz + 0.55);
+      box(g, 0.7, 0.06, 0.26, x, 0.84, cz + 0.2, railMat); for (let i = 0; i < 5; i++) chipStack(g, x - 0.26 + i * 0.13, 0.87, cz + 0.2, 7, CHIP_HEX[i]);
+      box(g, 0.22, 0.14, 0.34, x + 0.8, 0.88, cz + 0.25, railMat);
+      cardsOn(g, [[x - 0.05, cz + 0.55, 0.1], [x + 0.05, cz + 0.56, -0.05], [x - 0.6, cz + 0.95, 0.5], [x + 0.6, cz + 0.95, -0.5]], 0.815);
+      for (const q of tb.spots) casinoChair(I, g, q[0], q[1], q[2], false);
+      solid(I, x, cz + 0.6, 2.6, 1.3);
+    } else if (tb.game === 'hazard' || tb.game === 'chohan') {
+      if (tb.game === 'chohan') {
+        box(g, tb.w, 0.3, tb.d, x, 0.15, z, amat(0xece6d6)); box(g, tb.w + 0.1, 0.04, tb.d + 0.1, x, 0.02, z, wood());
+        const cup = mesh(g, 'cone', amat(0x6a3a1a), 0.22, 0.26, 0.22, x - 0.3, 0.44, z - 0.2); cup.rotation.x = Math.PI;
+        for (const q of tb.spots) casinoChair(I, g, q[0], q[1], q[2], true);
+        casinoChair(I, g, x, z - 1.2, 0, true);
+      } else {
+        box(g, tb.w, 0.72, tb.d, x, 0.36, z, railMat); box(g, tb.w - 0.24, 0.02, tb.d - 0.24, x, 0.73, z, feltMat);
+        for (const s2 of [-1, 1]) { box(g, tb.w, 0.26, 0.12, x, 0.85, z + s2 * (tb.d / 2 - 0.06), railMat); box(g, 0.12, 0.26, tb.d, x + s2 * (tb.w / 2 - 0.06), 0.85, z, railMat); }
+        mesh(g, 'cyl', wood(), 0.02, 1.4, 0.02, x + 0.9, 0.82, z - 0.3, 0, 0, Math.PI / 2);
+        for (let i = 0; i < 4; i++) chipStack(g, x - 0.9 + i * 0.3, 0.74, z + 0.35, 3 + i, CHIP_HEX[i]);
+      }
+      const dy = tb.game === 'chohan' ? 0.34 : 0.77;
+      for (let i = 0; i < 2; i++) mesh(g, 'box', amat(0xf4efe2), 0.07, 0.07, 0.07, x + 0.1 + i * 0.12, dy, z + (i ? 0.05 : -0.04), 0, 0.3 + i, 0);
+      solid(I, x, z, tb.w, tb.d);
+    } else if (tb.game === 'poker') {
+      mesh(g, 'cyl', railMat, 2.1, 0.1, 2.1, x, 0.74, z); mesh(g, 'cyl', feltMat, 1.86, 0.1, 1.86, x, 0.76, z); mesh(g, 'cyl', railMat, 0.5, 0.7, 0.5, x, 0.35, z);
+      cardsOn(g, tb.spots.map(q => [x + (q[0] - x) * 0.5, z + (q[1] - z) * 0.5, q[2]]), 0.815);
+      for (const q of tb.spots) { casinoChair(I, g, q[0], q[1], q[2], east); chipStack(g, x + (q[0] - x) * 0.35, 0.81, z + (q[1] - z) * 0.35, 4, CHIP_HEX[Math.floor(r() * 4)]); }
+      solid(I, x, z, 2.0, 2.0);
+    } else if (tb.game === 'wheel') {
+      // the great wheel on the back wall, with its pointer and the betting counter beneath
+      const wz = tb.z, cy = 3.6;
+      box(g, 4.6, 5.2, 0.2, 0, cy, -D / 2 + 0.2, railMat);
+      for (const [fx, fy, fw, fh] of [[0, cy + 2.6, 4.8, 0.2], [0, cy - 2.6, 4.8, 0.2], [-2.35, cy, 0.2, 5.4], [2.35, cy, 0.2, 5.4]]) box(g, fw, fh, 0.26, fx, fy, -D / 2 + 0.24, trim);
+      const pv = new THREE.Group(); pv.position.set(0, cy, wz); g.add(pv);
+      const bw = new THREE.MeshStandardMaterial({ map: casinoTex('bigwheel'), roughness: 0.5 });
+      const wh = new THREE.Mesh(new THREE.CylinderGeometry(2.0, 2.0, 0.14, 54), [goldMat, bw, bw]); wh.rotation.x = Math.PI / 2; pv.add(wh);
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(2.02, 0.06, 8, 54), goldMat); pv.add(rim);
+      mesh(g, 'cone', goldMat, 0.2, 0.42, 0.14, 0, cy + 2.05, wz + 0.12, 0, 0, Math.PI);
+      I.bigWheel = { pv, v: 0 };
+      box(g, 3.2, 1.0, 0.6, 0, 0.5, -D / 2 + 1.3, railMat); box(g, 3.1, 0.02, 0.5, 0, 1.01, -D / 2 + 1.3, feltMat);
+      [1, 2, 5, 10, 20, 40].forEach((v, i) => box(g, 0.42, 0.01, 0.34, -1.25 + i * 0.5, 1.025, -D / 2 + 1.3, amat(parseInt(WHEEL_COL[v].slice(1), 16))));
+      solid(I, 0, -D / 2 + 1.1, 3.4, 1.0); solid(I, 0, -D / 2 + 0.3, 4.6, 0.5);
+    }
+  }
+  // the cashier's cage: a counter behind brass bars, the strongbox and the stacks of gold
+  { const [cx] = P.cage, cz = -D / 2 + 1.9;
+    counter(I, cx, cz, 3.2, 0);
+    for (let i = 0; i <= 20; i++) mesh(g, 'cyl', goldMat, 0.025, 1.3, 0.025, cx - 1.55 + i * 0.155, 1.75, cz - 0.1);
+    box(g, 3.3, 0.08, 0.1, cx, 2.42, cz - 0.1, goldMat);
+    box(g, 0.9, 0.9, 0.7, cx - 1.0, 0.45, -D / 2 + 0.45, ironMat); solid(I, cx - 1.0, -D / 2 + 0.45, 0.9, 0.7);
+    box(g, 1.6, 2.2, 0.35, cx + 0.6, 1.1, -D / 2 + 0.25, wood()); for (let i = 0; i < 6; i++) chipStack(g, cx + 0.05 + (i % 3) * 0.5, 0.95 + Math.floor(i / 3) * 0.7, -D / 2 + 0.5, 8, 0xc8a040);
+    for (let i = 0; i < 8; i++) chipStack(g, cx - 1.2 + i * 0.3, 1.12, cz, 4 + (i % 4) * 3, i % 2 ? 0xc8a040 : CHIP_HEX[i % 5]); }
+  // the bar: bottles on the shelves behind, stools in front
+  { const [bx] = P.bar, bz = -D / 2 + 1.9;
+    counter(I, bx, bz, 3.2, 0);
+    box(g, 3.2, 2.6, 0.3, bx, 1.3, -D / 2 + 0.18, wood()); for (const y of [1.15, 1.7]) box(g, 3.2, 0.05, 0.4, bx, y, -D / 2 + 0.38, wood()); goldFrame(g, 2.6, 0.9, bx, 3.1, -D / 2 + 0.36, 0, mirrorMat);
+    for (let i = 0; i < 12; i++) mesh(g, 'cyl', new THREE.MeshStandardMaterial({ color: [0x2a6a3a, 0x7a2a1a, 0x3a3a7a, 0x8a6a2a][i % 4], roughness: 0.15, transparent: true, opacity: 0.85 }), 0.1, 0.32, 0.1, bx - 1.4 + i * 0.25, 1.3 + (i % 2) * 0.55, -D / 2 + 0.35);
+    for (let i = 0; i < 3; i++) mesh(g, 'cyl', new THREE.MeshStandardMaterial({ color: 0xd8e8ea, transparent: true, opacity: 0.4, roughness: 0.05 }), 0.07, 0.14, 0.07, bx - 0.8 + i * 0.6, 1.19, bz + 0.1);
+    for (const q of P.stools) casinoChair(I, g, q[0], q[1], q[2], east); }
+  I.lightSpots.push([0, 2.2, 0], [-6, 2.0, 3], [6, 2.0, 3]);
+  return doneRoom(I);
+}
+const _dressGrandC = dressGrand;
+dressGrand = function (t, H) {
+  if (H.kind === 'casino') return dressCasino(t, H);
+  const I = _dressGrandC(t, H);
+  if (I && H.kind === 'gaminghouse') I.tables = gamingPlan(H);
+  return I;
+};
+// the wheels turn: roulette wheels idle round slowly, and spin hard when you play
+const _updateHousesC = updateHouses;
+updateHouses = function (dt) {
+  _updateHousesC(dt);
+  for (const I of dressed.values()) {
+    if (I.rWheels) for (const w of I.rWheels) { w.v = Math.max(w.base, w.v - dt * 0.9); w.pv.rotation.y += w.v * dt; }
+    if (I.bigWheel && I.bigWheel.v > 0) { const B = I.bigWheel; B.v = Math.max(0, B.v - dt * 0.8); B.pv.rotation.z -= B.v * dt; }
+  }
+};
+function casinoRoomOf(H) { const t = houseTown(H); return t ? dressed.get(hkey(t, H)) : null; }
+
+/* ---------- walking up to a table ---------- */
+function casinoPrompt() {
+  const H = playerHouse;
+  if (!H || (H.kind !== 'casino' && H.kind !== 'gaminghouse') || player.mode !== 'walk' || CS.open) return null;
+  if (player.pos.y - 1.7 - H.y > 1.5) return null;
+  const [lx, lz] = houseFrame(H).toLocal(player.pos.x, player.pos.z);
+  let best = null, bd = 1.3;
+  for (const tb of tablesOf(H)) { const d = tableDist(tb, lx, lz); if (d < bd) { bd = d; best = tb; } }
+  return best ? { kind: 'casino', H, tb: best, label: GAME_PROMPT[best.game] } : null;
+}
+const _doorPromptC = doorPrompt;
+doorPrompt = function () { return casinoPrompt() || _doorPromptC(); };
+const _useDoorC = useDoor;
+useDoor = function (pr) { if (pr && pr.kind === 'casino') { openCasino(houseTown(pr.H), pr.H, pr.tb); return; } return _useDoorC(pr); };
+// at a table, E plays rather than talks, unless you're standing right in front of someone
+const _talkTargetC = talkTarget;
+talkTarget = function () {
+  const a = _talkTargetC();
+  if (!a || !casinoPrompt()) return a;
+  const p = eyePos(), dx = a.x - p.x, dz = a.z - p.z, d = Math.hypot(dx, dz);
+  return d < 1.2 && (-Math.sin(player.yaw) * dx - Math.cos(player.yaw) * dz) / (d || 1) > 0.8 ? a : null;
+};
+
+/* ---------- the tables: a panel over the world, with real gold on the felt ---------- */
+const CS = { open: false, t: null, H: null, tb: null, net: 0, chip: 5, token: 0, keys: null, onClose: null, raf: 0 };
+const CHIPS = [1, 5, 25, 100, 500];
+const CHIP_CSS = { 1: '#e8e4d8', 5: '#b01e24', 25: '#1a7a3a', 100: '#1a1a1a', 500: '#6a2a9a' };
+const csEl = id => document.getElementById(id);
+function el(tag, cls, txt) { const e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; }
+function csBtn(label, fn, cls, key) { const b = el('button', 'cs-btn' + (cls ? ' ' + cls : '')); b.append(label); if (key) { const k = el('kbd', '', key); b.append(k); } b.addEventListener('click', fn); return b; }
+function csWait(ms) { const tok = CS.token; return new Promise((res, rej) => setTimeout(() => (CS.token === tok && CS.open ? res() : rej(new Error('closed'))), ms)); }
+const csRun = f => f().catch(e => { if (!e || e.message !== 'closed') console.error(e); });
+function csTake(n) { if (n <= 0 || game.gold < n) return false; game.gold -= n; CS.net -= n; csHead(); return true; }
+function csPay(n) { if (n <= 0) return; game.gold += n; CS.net += n; csHead(); }
+function csHead() {
+  csEl('cs-gold').textContent = `${game.gold} gold`;
+  const n = CS.net, e = csEl('cs-net');
+  e.textContent = n === 0 ? 'even at this table' : n > 0 ? `up ${n} at this table` : `down ${-n} at this table`;
+  e.className = n > 0 ? 'up' : n < 0 ? 'down' : '';
+}
+function csMsg(t, tone) { const m = csEl('cs-msg'); m.textContent = t; m.className = tone || ''; }
+function csSound(kind) {
+  if (!audio.ctx || !audio.on || audio.ctx.state !== 'running') return;
+  const ctx = audio.ctx, len = kind === 'card' ? 0.09 : kind === 'dice' ? 0.05 : 0.03, buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * len), ctx.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, kind === 'card' ? 1.5 : 4);
+  const n = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+  n.buffer = buf; f.type = kind === 'card' ? 'bandpass' : 'highpass'; f.frequency.value = kind === 'chip' ? 3000 : kind === 'tick' ? 4600 : kind === 'dice' ? 1800 : 2400; g.gain.value = kind === 'tick' ? 0.1 : 0.22;
+  n.connect(f); f.connect(g); g.connect(audio.master); n.start();
+}
+function csSetChip(v) { CS.chip = v; document.querySelectorAll('#casino .cs-chip').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.v === v))); }
+function csChips() {
+  const box = el('div', 'cs-chips');
+  box.append(el('span', 'cs-lbl', 'Chip'));
+  CHIPS.forEach((v, i) => { const b = el('button', 'cs-chip', v >= 1000 ? v / 1000 + 'k' : String(v)); b.dataset.v = v; b.style.setProperty('--c', CHIP_CSS[v]); b.title = `${v} gold (${i + 1})`; b.setAttribute('aria-pressed', String(v === CS.chip)); b.addEventListener('click', () => csSetChip(v)); box.append(b); });
+  return box;
+}
+function csDealer(t, H, tb) {
+  if (!t) return null;
+  const k = H.kind === 'casino' ? casinoPlan(H).tables.indexOf(tb) : -1, [wx, wz] = houseFrame(H).toWorld(tb.x, tb.z);
+  for (const a of t.actors) if (a.work && a.work.house === H && (k < 0 || a.work.k === k) && !a.lazy && Math.hypot(a.x - wx, a.z - wz) < 4) return a;
+  return null;
+}
+function openCasino(t, H, tb) {
+  if (!tb || CS.open) return;
+  if (document.pointerLockElement) document.exitPointerLock();
+  keys.clear();
+  Object.assign(CS, { open: true, t, H, tb, net: 0, keys: null, onClose: null });
+  CS.token++;
+  if (CS.chip > Math.max(1, game.gold)) CS.chip = CHIPS.filter(v => v <= Math.max(1, game.gold)).pop();
+  const dl = csDealer(t, H, tb);
+  csEl('cs-house').textContent = `${H.name || 'The gaming house'} · ${dl ? (tb.game === 'poker' || tb.game === 'blackjack' ? 'dealt by ' : 'run by ') + dl.res.name : 'the house deals'}`;
+  csEl('cs-title').textContent = GAME_NAMES[tb.game];
+  csEl('cs-limit').textContent = `Table limit ${tb.limit} gold`;
+  csEl('casino').hidden = false;
+  csEl('casino').dataset.game = tb.game;
+  csHead(); csMsg('');
+  const body = csEl('cs-body'); body.textContent = '';
+  ({ roulette: rlOpen, blackjack: bjOpen, hazard: hzOpen, chohan: chOpen, poker: pkOpen, wheel: whOpen, baccarat: bcOpen })[tb.game](body, tb);
+}
+function closeCasino() {
+  if (!CS.open) return;
+  CS.token++;
+  cancelAnimationFrame(CS.raf);
+  const f = CS.onClose; CS.onClose = null;
+  if (f) f();
+  CS.open = false; CS.keys = null;
+  csEl('casino').hidden = true;
+  saveGame();
+  if (CS.net) toast(CS.net > 0 ? `You leave the table ${CS.net} gold richer.` : `You leave the table ${-CS.net} gold poorer.`);
+}
+addEventListener('keydown', (e) => {
+  if (!CS.open) return;
+  e.stopImmediatePropagation();
+  if (e.repeat) return;
+  if (e.code === 'Space' && document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  if (e.code === 'Escape' || e.code === 'KeyE') { e.preventDefault(); closeCasino(); return; }
+  const f = CS.keys && CS.keys[e.code];
+  if (f) { e.preventDefault(); f(); return; }
+  if (/^Digit[1-5]$/.test(e.code)) csSetChip(CHIPS[+e.code.slice(5) - 1]);
+}, true);
+function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function newDeck(n = 1) { const d = []; for (let k = 0; k < n; k++) for (let s = 0; s < 4; s++) for (let r = 1; r <= 13; r++) d.push({ r, s }); return shuffle(d); }
+const SUITS = ['♠', '♥', '♦', '♣'], RANKS = ['', 'A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+// a card slides onto the felt once; redrawing the hand afterwards leaves it lying still
+const cardsShown = new WeakSet(), backsShown = new WeakSet();
+function cardEl(c, hidden) {
+  if (hidden) { const e = el('div', 'cs-card back' + (c && backsShown.has(c) ? ' still' : '')); if (c) backsShown.add(c); return e; }
+  const e = el('div', 'cs-card' + (c.s === 1 || c.s === 2 ? ' red' : '') + (cardsShown.has(c) ? ' still' : ''));
+  cardsShown.add(c);
+  e.append(el('b', '', RANKS[c.r]), el('span', '', SUITS[c.s]), el('i', '', SUITS[c.s]));
+  return e;
+}
+function dieEl(n) { const e = el('div', 'cs-die'); const on = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] }[n]; for (let i = 0; i < 9; i++) e.append(el('i', on.includes(i) ? 'on' : '')); return e; }
+const roll = () => 1 + Math.floor(Math.random() * 6);
+
+/* ---------- roulette ---------- */
+function rlPayout(key, n) {
+  if (key[0] === 'n') return +key.slice(1) === n ? 35 : -1;
+  if (n === 0) return -1;
+  if (key === 'red') return RL_RED.has(n) ? 1 : -1;
+  if (key === 'black') return RL_RED.has(n) ? -1 : 1;
+  if (key === 'odd') return n % 2 ? 1 : -1;
+  if (key === 'even') return n % 2 ? -1 : 1;
+  if (key === 'low') return n <= 18 ? 1 : -1;
+  if (key === 'high') return n >= 19 ? 1 : -1;
+  if (key[0] === 'd') return Math.ceil(n / 12) === +key[1] ? 2 : -1;
+  if (key[0] === 'c') return (n - 1) % 3 + 1 === +key[1] ? 2 : -1;
+  return -1;
+}
+const RL_NAME = { red: 'red', black: 'black', odd: 'odd', even: 'even', low: '1–18', high: '19–36', d1: 'the first dozen', d2: 'the second dozen', d3: 'the third dozen', c1: 'the first column', c2: 'the second column', c3: 'the third column' };
+function rlOpen(body, tb) {
+  const S = { bets: new Map(), last: null, ang: Math.random() * 6.283, ball: null, spinning: false };
+  tb.hist = tb.hist || Array.from({ length: 8 }, () => RL_ORDER[Math.floor(Math.random() * 37)]);
+  const row = el('div', 'cs-row'), cv = el('canvas', 'cs-wheel'); cv.width = cv.height = 520; row.append(cv);
+  const side = el('div', 'cs-side'), board = el('div', 'cs-board'), cells = new Map();
+  const cell = (key, label, cls, col, rowS) => { const b = el('button', 'cs-cell ' + cls); b.append(el('span', '', label)); b.style.gridColumn = col; b.style.gridRow = rowS; b.addEventListener('click', () => bet(key)); b.addEventListener('contextmenu', e => { e.preventDefault(); unbet(key); }); board.append(b); cells.set(key, b); };
+  cell('n0', '0', 'green', '1', '1 / 4');
+  for (let c = 0; c < 12; c++) for (let r = 0; r < 3; r++) { const n = c * 3 + 3 - r; cell('n' + n, String(n), rlColor(n), String(c + 2), String(r + 1)); }
+  for (let r = 0; r < 3; r++) cell('c' + (3 - r), '2:1', 'out', '14', String(r + 1));
+  for (let d = 0; d < 3; d++) cell('d' + (d + 1), ['1st 12', '2nd 12', '3rd 12'][d], 'out', `${2 + d * 4} / span 4`, '4');
+  [['low', '1–18', 'out'], ['even', 'Even', 'out'], ['red', '', 'red'], ['black', '', 'black'], ['odd', 'Odd', 'out'], ['high', '19–36', 'out']].forEach(([k, l, c], i) => cell(k, l || (k === 'red' ? 'Red' : 'Black'), c, `${2 + i * 2} / span 2`, '5'));
+  const hist = el('div', 'cs-hist'), note = el('div', 'cs-note', 'Click a square to stake the chosen chip on it; right-click to take a chip back. A number pays 35 to 1, a dozen or column 2 to 1, red, black, odd, even and the halves 1 to 1. Zero takes the outside bets.');
+  side.append(board, hist, note); row.append(side);
+  const ctl = el('div', 'cs-ctl'), stakeEl = el('span', 'cs-stake');
+  const bSpin = csBtn('Spin', () => spin(), 'solid', 'Space'), bClear = csBtn('Clear', () => clear()), bAgain = csBtn('Same again', () => again());
+  ctl.append(csChips(), stakeEl, bClear, bAgain, bSpin);
+  body.append(row, ctl);
+  const total = () => { let s = 0; for (const v of S.bets.values()) s += v; return s; };
+  function refresh() {
+    for (const [k, b] of cells) { let badge = b.querySelector('b'); const v = S.bets.get(k); if (v) { if (!badge) { badge = el('b'); b.append(badge); } badge.textContent = v; } else if (badge) badge.remove(); b.classList.toggle('win', S.win !== undefined && rlPayout(k, S.win) > 0 && !S.spinning); }
+    stakeEl.textContent = total() ? `${total()} gold on the table` : 'No bets yet';
+    bSpin.disabled = S.spinning || !total(); bClear.disabled = S.spinning || !total(); bAgain.disabled = S.spinning || !S.last || total() > 0;
+    hist.textContent = ''; hist.append(el('span', 'cs-lbl', 'Last numbers')); for (const n of tb.hist.slice(-10).reverse()) hist.append(el('i', 'cs-dot ' + rlColor(n), String(n)));
+  }
+  function bet(key, amt = CS.chip) {
+    if (S.spinning) return;
+    if (total() + amt > tb.limit) return csMsg(`The table limit is ${tb.limit} gold.`);
+    if (!csTake(amt)) return csMsg('You don\'t have the gold for that chip.');
+    S.bets.set(key, (S.bets.get(key) || 0) + amt); S.win = undefined; csSound('chip'); csMsg(''); refresh();
+  }
+  function unbet(key) { if (S.spinning || !S.bets.has(key)) return; const v = S.bets.get(key), back = Math.min(v, CS.chip); csPay(back); if (v - back > 0) S.bets.set(key, v - back); else S.bets.delete(key); csSound('chip'); refresh(); }
+  function clear() { if (S.spinning) return; csPay(total()); S.bets.clear(); refresh(); }
+  function again() { if (S.spinning || !S.last) return; let need = 0; for (const v of S.last.values()) need += v; if (need > game.gold) return csMsg('Not enough gold to lay the same bets again.'); for (const [k, v] of S.last) bet(k, v); }
+  function settle(n) {
+    let back = 0, won = [];
+    for (const [k, v] of S.bets) { const p = rlPayout(k, n); if (p > 0) { back += v * (p + 1); won.push(k[0] === 'n' ? String(n) : RL_NAME[k]); } }
+    const staked = total();
+    S.last = new Map(S.bets); S.bets.clear(); S.win = n; S.spinning = false; tb.hist.push(n); if (tb.hist.length > 30) tb.hist.shift();
+    csPay(back);
+    const head = `${n} ${n === 0 ? 'green' : rlColor(n)}.`;
+    if (back > staked) { sfx('coins'); csMsg(`${head} You win on ${won.join(', ')}: ${back} gold back for ${staked} staked.`, 'good'); }
+    else if (back > 0) csMsg(`${head} ${won.join(', ')} comes in, but you still lose ${staked - back} gold.`, 'bad');
+    else csMsg(`${head} ${pickOne(['The croupier rakes in your chips.', 'Nothing. The rake sweeps the felt clean.', 'The house thanks you for your custom.'])}`, 'bad');
+    CS.onClose = () => clear();
+    refresh();
+  }
+  function spin() {
+    if (S.spinning || !total()) return;
+    const k = Math.floor(Math.random() * 37), n = RL_ORDER[k], st = Math.PI * 2 / 37, a0 = S.ang, spinA = Math.PI * (4 + Math.random() * 2), B = Math.PI * (7 + Math.random() * 2), dur = 4800, t0 = performance.now();
+    S.spinning = true; S.win = undefined; csMsg('No more bets.'); refresh();
+    const I = casinoRoomOf(CS.H), rw = I && I.rWheels && I.rWheels.find(w => w.tb === tb); if (rw) rw.v = 7;
+    CS.onClose = () => settle(n);
+    let lastSeg = -1;
+    const ease = x => 1 - Math.pow(1 - x, 3);
+    const step = now => {
+      const p = Math.min(1, (now - t0) / dur), ang = a0 + spinA * ease(p), pocket = -Math.PI / 2 + k * st + ang, q = Math.min(1, p / 0.86);
+      const ba = pocket + B * (1 - ease(q)), drop = ss(0.55, 0.86, p), br = 0.88 - drop * 0.3 + (p > 0.6 && p < 0.86 ? Math.abs(Math.sin(p * 60)) * 0.04 * (1 - drop) : 0);
+      S.ang = ang;
+      const c = cv.getContext('2d'); c.clearRect(0, 0, cv.width, cv.height); drawRWheel(c, cv.width / 2, cv.height / 2, cv.width / 2 - 4, ang, [ba, br * (cv.width / 2 - 4)]);
+      const seg = Math.floor(ba / (st * 2)); if (seg !== lastSeg && p > 0.5 && p < 0.9) { lastSeg = seg; csSound('tick'); }
+      if (p < 1) CS.raf = requestAnimationFrame(step);
+      else { CS.onClose = null; settle(n); S.ball = [ba, br]; }
+    };
+    CS.raf = requestAnimationFrame(step);
+  }
+  const c = cv.getContext('2d'); drawRWheel(c, cv.width / 2, cv.height / 2, cv.width / 2 - 4, S.ang, null);
+  CS.keys = { Space: spin };
+  CS.onClose = () => clear();
+  refresh();
+}
+
+/* ---------- blackjack ---------- */
+function bjVal(cs) { let t = 0, a = 0; for (const c of cs) { t += Math.min(10, c.r); if (c.r === 1) a++; } const soft = a > 0 && t + 10 <= 21; return { t: soft ? t + 10 : t, soft }; }
+const bjNatural = h => h.cards.length === 2 && bjVal(h.cards).t === 21 && !h.split;
+function bjOpen(body, tb) {
+  if (!tb.shoe || tb.shoe.length < 60) tb.shoe = newDeck(tb.small ? 2 : 6);
+  const S = { phase: 'bet', bet: 0, lastBet: 0, dealer: [], hands: [], cur: 0, reveal: false, settled: true };
+  const felt = el('div', 'cs-felt'), dRow = el('div', 'cs-hand dealer'), pRow = el('div', 'cs-hands');
+  felt.append(el('div', 'cs-lbl', 'Dealer stands on all 17s · blackjack pays 3 to 2'), dRow, pRow);
+  const ctl = el('div', 'cs-ctl'), stakeEl = el('span', 'cs-stake');
+  const bBet = csBtn('Add chip', () => addBet(), '', 'B'), bClear = csBtn('Clear', () => { if (S.phase !== 'bet') return; S.bet = 0; render(); });
+  const bDeal = csBtn('Deal', () => deal(), 'solid', 'Space'), bHit = csBtn('Hit', () => hit(), 'solid', 'H'), bStand = csBtn('Stand', () => stand(), '', 'S'), bDbl = csBtn('Double', () => dbl(), '', 'D'), bSplit = csBtn('Split', () => split(), '', 'P');
+  ctl.append(csChips(), stakeEl, bBet, bClear, bDeal, bHit, bStand, bDbl, bSplit);
+  body.append(felt, ctl);
+  const draw = () => { if (tb.shoe.length < 15) { tb.shoe = newDeck(tb.small ? 2 : 6); csMsg('The dealer shuffles a fresh shoe.'); } csSound('card'); return tb.shoe.pop(); };
+  const curHand = () => S.hands[S.cur];
+  function render() {
+    dRow.textContent = '';
+    S.dealer.forEach((c, i) => dRow.append(cardEl(c, i === 1 && !S.reveal)));
+    if (S.dealer.length) dRow.append(el('span', 'cs-val', S.reveal ? String(bjVal(S.dealer).t) : String(bjVal([S.dealer[0]]).t)));
+    pRow.textContent = '';
+    S.hands.forEach((h, i) => {
+      const hr = el('div', 'cs-hand' + (S.phase === 'play' && i === S.cur ? ' cur' : '')); h.cards.forEach(c => hr.append(cardEl(c)));
+      const v = bjVal(h.cards); hr.append(el('span', 'cs-val', (v.soft && v.t < 21 ? 'soft ' : '') + v.t + (h.result ? ' · ' + h.result : '')), el('span', 'cs-bet', `${h.bet} gold`));
+      pRow.append(hr);
+    });
+    const h = curHand(), play = S.phase === 'play' && h;
+    stakeEl.textContent = S.phase === 'bet' ? (S.bet ? `Bet ${S.bet} gold` : 'Place a bet') : '';
+    bBet.hidden = bClear.hidden = bDeal.hidden = !(S.phase === 'bet' || S.phase === 'done');
+    bDeal.firstChild.textContent = S.phase === 'done' ? (S.bet ? `Deal again (${S.bet})` : 'Deal') : 'Deal';
+    bDeal.disabled = !S.bet; bClear.disabled = !S.bet || S.phase !== 'bet';
+    bHit.hidden = bStand.hidden = bDbl.hidden = bSplit.hidden = !play;
+    if (play) { bDbl.disabled = h.cards.length !== 2 || game.gold < h.bet; bSplit.disabled = !(h.cards.length === 2 && h.cards[0].r === h.cards[1].r && S.hands.length < 2 && game.gold >= h.bet); }
+  }
+  function addBet() {
+    if (S.phase === 'done') { S.phase = 'bet'; S.bet = 0; S.hands = []; S.dealer = []; }
+    if (S.phase !== 'bet') return;
+    if (S.bet + CS.chip > tb.limit) return csMsg(`The table limit is ${tb.limit} gold.`);
+    if (S.bet + CS.chip > game.gold) return csMsg('You don\'t have the gold for that.');
+    S.bet += CS.chip; csSound('chip'); csMsg(''); render();
+  }
+  function deal() {
+    if (!(S.phase === 'bet' || S.phase === 'done') || !S.bet) return;
+    if (!csTake(S.bet)) return csMsg('You don\'t have the gold for that bet.');
+    S.phase = 'deal'; S.settled = false; S.reveal = false; S.dealer = []; S.hands = [{ cards: [], bet: S.bet }]; S.cur = 0; csMsg(''); render();
+    csRun(async () => {
+      for (const who of ['p', 'd', 'p', 'd']) { await csWait(320); (who === 'p' ? S.hands[0].cards : S.dealer).push(draw()); render(); }
+      const up = S.dealer[0], dNat = bjVal(S.dealer).t === 21;
+      if (bjNatural(S.hands[0]) || (dNat && (up.r === 1 || up.r >= 10))) { await csWait(400); return finish(); }
+      S.phase = 'play'; render();
+    });
+  }
+  function next() { while (S.cur < S.hands.length && S.hands[S.cur].done) S.cur++; if (S.cur >= S.hands.length) { S.phase = 'dealer'; render(); csRun(dealerPlays); } else render(); }
+  function hit() { const h = curHand(); if (S.phase !== 'play' || !h) return; h.cards.push(draw()); const v = bjVal(h.cards).t; if (v >= 21) h.done = true; if (v > 21) h.result = 'bust'; next(); }
+  function stand() { const h = curHand(); if (S.phase !== 'play' || !h) return; h.done = true; next(); }
+  function dbl() { const h = curHand(); if (S.phase !== 'play' || !h || h.cards.length !== 2 || !csTake(h.bet)) return; h.bet *= 2; h.cards.push(draw()); h.done = true; if (bjVal(h.cards).t > 21) h.result = 'bust'; next(); }
+  function split() {
+    const h = curHand(); if (S.phase !== 'play' || !h || h.cards.length !== 2 || h.cards[0].r !== h.cards[1].r || S.hands.length > 1 || !csTake(h.bet)) return;
+    const aces = h.cards[0].r === 1, h2 = { cards: [h.cards.pop()], bet: h.bet, split: true }; h.split = true;
+    h.cards.push(draw()); h2.cards.push(draw()); S.hands.push(h2);
+    if (aces) { h.done = h2.done = true; }
+    for (const q of S.hands) if (bjVal(q.cards).t === 21) q.done = true;
+    next();
+  }
+  async function dealerPlays() {
+    S.reveal = true; render();
+    const live = S.hands.some(h => bjVal(h.cards).t <= 21);
+    while (live && (bjVal(S.dealer).t < 17)) { await csWait(520); S.dealer.push(draw()); render(); }
+    await csWait(250); finish();
+  }
+  // settles every hand; runs straight through without pauses if you walk away mid-hand
+  function finish() {
+    if (S.settled) return;
+    while (S.hands[0] && S.hands[0].cards.length < 2) S.hands[0].cards.push(draw());
+    while (S.dealer.length < 2) S.dealer.push(draw());
+    S.reveal = true;
+    const dNat = S.dealer.length === 2 && bjVal(S.dealer).t === 21;
+    if (!dNat && !(S.hands.length === 1 && bjNatural(S.hands[0])) && S.hands.some(h => bjVal(h.cards).t <= 21)) while (bjVal(S.dealer).t < 17) S.dealer.push(draw());
+    const dv = bjVal(S.dealer).t;
+    let back = 0, staked = 0;
+    for (const h of S.hands) {
+      const v = bjVal(h.cards).t; staked += h.bet;
+      if (bjNatural(h) && !dNat) { h.result = 'blackjack!'; back += h.bet + Math.floor(h.bet * 1.5); }
+      else if (bjNatural(h) && dNat) { h.result = 'push'; back += h.bet; }
+      else if (v > 21) h.result = 'bust';
+      else if (dNat) h.result = 'dealer blackjack';
+      else if (dv > 21 || v > dv) { h.result = 'win'; back += h.bet * 2; }
+      else if (v === dv) { h.result = 'push'; back += h.bet; }
+      else h.result = 'lose';
+    }
+    S.settled = true; S.phase = 'done'; csPay(back);
+    if (S.bet > game.gold) S.bet = 0;
+    const net = back - staked;
+    if (net > 0) { sfx('coins'); csMsg(`${dv > 21 ? 'The dealer busts with ' + dv + '.' : 'Dealer has ' + dv + '.'} You win ${net} gold.`, 'good'); }
+    else if (net === 0) csMsg(`Dealer has ${dv}. A push: your stake comes back.`);
+    else csMsg(`${dNat ? 'Dealer turns over a blackjack.' : 'Dealer has ' + dv + '.'} You lose ${-net} gold.`, 'bad');
+    render();
+  }
+  CS.keys = { Space: deal, KeyB: addBet, KeyH: hit, KeyS: stand, KeyD: dbl, KeyP: split };
+  CS.onClose = () => { if (!S.settled) finish(); };
+  S.bet = Math.min(CS.chip, tb.limit, game.gold);
+  render();
+}
+
+/* ---------- hazard: the caster's game, the old mother of craps ---------- */
+function hzOpen(body, tb) {
+  const S = { point: 0, pass: 0, dont: 0, rolling: false, dice: [roll(), roll()] };
+  const felt = el('div', 'cs-felt'), dice = el('div', 'cs-dice'), pt = el('div', 'cs-point');
+  const areas = el('div', 'cs-areas'), aPass = el('button', 'cs-area'), aDont = el('button', 'cs-area');
+  aPass.addEventListener('click', () => bet('pass')); aDont.addEventListener('click', () => bet('dont'));
+  areas.append(aPass, aDont);
+  felt.append(el('div', 'cs-lbl', 'Come-out: 7 or 11 wins the pass line, 2, 3 or 12 loses it. Any other number is the point: throw it again before a 7.'), dice, pt, areas);
+  const ctl = el('div', 'cs-ctl'), bRoll = csBtn('Throw the dice', () => throwDice(), 'solid', 'Space'), bTake = csBtn('Take back bets', () => takeBack());
+  ctl.append(csChips(), bTake, bRoll);
+  body.append(felt, ctl);
+  function render() {
+    dice.textContent = ''; dice.append(dieEl(S.dice[0]), dieEl(S.dice[1]));
+    pt.textContent = S.point ? `The point is ${S.point}` : 'Coming out';
+    aPass.innerHTML = ''; aPass.append(el('b', '', 'Pass line'), el('small', '', S.pass ? `${S.pass} gold` : 'wins on the caster'));
+    aDont.innerHTML = ''; aDont.append(el('b', '', 'Don\'t pass'), el('small', '', S.dont ? `${S.dont} gold` : 'bets against the caster · 12 is a push'));
+    aPass.disabled = aDont.disabled = S.rolling || S.point > 0;
+    bRoll.disabled = S.rolling || !(S.pass || S.dont); bTake.disabled = S.rolling || S.point > 0 || !(S.pass || S.dont);
+  }
+  function bet(k) {
+    if (S.rolling || S.point) return;
+    if (S.pass + S.dont + CS.chip > tb.limit) return csMsg(`The table limit is ${tb.limit} gold.`);
+    if (!csTake(CS.chip)) return csMsg('You don\'t have the gold for that chip.');
+    S[k] += CS.chip; csSound('chip'); csMsg(''); render();
+  }
+  function takeBack() { if (S.point || S.rolling) return; csPay(S.pass + S.dont); S.pass = S.dont = 0; render(); }
+  // what one throw does to the bets; returns a line to say about it
+  function resolve(sum) {
+    let back = 0, line = '';
+    const staked = S.pass + S.dont;
+    if (!S.point) {
+      if (sum === 7 || sum === 11) { back = S.pass * 2; line = `${sum}! A natural. The pass line wins.`; S.pass = S.dont = 0; }
+      else if (sum === 2 || sum === 3 || sum === 12) { back = sum === 12 ? S.dont : S.dont * 2; line = sum === 12 ? 'Twelve, boxcars. The pass line loses; don\'t pass is a push.' : `${sum}, crabs. The pass line loses${S.dont ? ', don\'t pass wins' : ''}.`; S.pass = S.dont = 0; }
+      else { S.point = sum; line = `${sum} is the point. Throw it again before a seven.`; return { back: 0, line, staked: 0 }; }
+    } else if (sum === S.point) { back = S.pass * 2; line = `${sum} again! The caster makes the point.`; S.pass = S.dont = 0; S.point = 0; }
+    else if (sum === 7) { back = S.dont * 2; line = 'Seven out. The pass line loses.'; S.pass = S.dont = 0; S.point = 0; }
+    else return { back: 0, line: `${sum}. Still looking for ${S.point}.`, staked: 0 };
+    return { back, line, staked };
+  }
+  function throwDice() {
+    if (S.rolling || !(S.pass || S.dont)) return;
+    S.rolling = true; render();
+    csRun(async () => {
+      for (let i = 0; i < 7; i++) { S.dice = [roll(), roll()]; csSound('dice'); dice.textContent = ''; dice.append(dieEl(S.dice[0]), dieEl(S.dice[1])); dice.classList.add('shake'); await csWait(90); }
+      dice.classList.remove('shake'); S.rolling = false;
+      const R = resolve(S.dice[0] + S.dice[1]);
+      csPay(R.back);
+      csMsg(R.line + (R.staked ? (R.back > R.staked ? ` You collect ${R.back} gold.` : R.back === R.staked ? ' Your stake comes back.' : R.back ? ` ${R.back} gold comes back.` : ' The stickman rakes in your chips.') : ''), R.staked ? (R.back > R.staked ? 'good' : R.back < R.staked ? 'bad' : '') : '');
+      if (R.back > R.staked) sfx('coins');
+      render();
+    });
+  }
+  CS.keys = { Space: throwDice };
+  // walking away with a point on: the caster throws on to a decision without you
+  CS.onClose = () => { S.rolling = false; if (!S.point) { csPay(S.pass + S.dont); S.pass = S.dont = 0; return; } for (let i = 0; i < 200 && S.point; i++) csPay(resolve(roll() + roll()).back); };
+  render();
+}
+
+/* ---------- chō-han: even or odd, under the cup ---------- */
+function chOpen(body, tb) {
+  const S = { cho: 0, han: 0, rolling: false, dice: null };
+  const felt = el('div', 'cs-felt east'), cup = el('div', 'cs-dice'), areas = el('div', 'cs-areas'), aCho = el('button', 'cs-area'), aHan = el('button', 'cs-area');
+  aCho.addEventListener('click', () => bet('cho')); aHan.addEventListener('click', () => bet('han'));
+  areas.append(aCho, aHan);
+  felt.append(el('div', 'cs-lbl', 'Two dice under the cup. Chō: the sum is even. Han: it is odd. Winners are paid even money, less a twentieth to the house.'), cup, areas);
+  const ctl = el('div', 'cs-ctl'), bOpen = csBtn('Lift the cup', () => lift(), 'solid', 'Space');
+  ctl.append(csChips(), bOpen);
+  body.append(felt, ctl);
+  function render() {
+    cup.textContent = ''; if (S.dice) cup.append(dieEl(S.dice[0]), dieEl(S.dice[1])); else cup.append(el('div', 'cs-cup'));
+    aCho.innerHTML = ''; aCho.append(el('b', '', 'Chō 丁'), el('small', '', S.cho ? `${S.cho} gold` : 'even'));
+    aHan.innerHTML = ''; aHan.append(el('b', '', 'Han 半'), el('small', '', S.han ? `${S.han} gold` : 'odd'));
+    aCho.disabled = aHan.disabled = S.rolling; bOpen.disabled = S.rolling || !(S.cho || S.han);
+  }
+  function bet(k) { if (S.rolling) return; if (S.cho + S.han + CS.chip > tb.limit) return csMsg(`The mat limit is ${tb.limit} gold.`); if (!csTake(CS.chip)) return csMsg('You don\'t have the gold for that chip.'); S[k] += CS.chip; S.dice = null; csSound('chip'); csMsg(''); render(); }
+  function settle(a, b) {
+    const even = (a + b) % 2 === 0, win = even ? S.cho : S.han, staked = S.cho + S.han, back = win ? win * 2 - Math.floor(win / 20) : 0;
+    S.dice = [a, b]; S.cho = S.han = 0; S.rolling = false; csPay(back);
+    csMsg(`${a} and ${b}: ${a + b}, ${even ? 'chō' : 'han'}. ${back > staked ? `You collect ${back} gold.` : back ? `${back} gold comes back to you.` : 'The dealer sweeps your stake from the mat.'}`, back > staked ? 'good' : back < staked ? 'bad' : '');
+    if (back > staked) sfx('coins');
+    render();
+  }
+  function lift() {
+    if (S.rolling || !(S.cho || S.han)) return;
+    const a = roll(), b = roll(); S.rolling = true; S.dice = null; render();
+    CS.onClose = () => settle(a, b);
+    csRun(async () => { for (let i = 0; i < 5; i++) { csSound('dice'); cup.classList.toggle('shake'); await csWait(140); } cup.classList.remove('shake'); CS.onClose = refund; settle(a, b); });
+  }
+  const refund = () => { csPay(S.cho + S.han); S.cho = S.han = 0; };
+  CS.keys = { Space: lift };
+  CS.onClose = refund;
+  render();
+}
+
+/* ---------- draw poker, jacks or better ---------- */
+const PK_PAY = [['royal', 'Royal flush', 250], ['sflush', 'Straight flush', 50], ['four', 'Four of a kind', 25], ['full', 'Full house', 9], ['flush', 'Flush', 6], ['straight', 'Straight', 4], ['three', 'Three of a kind', 3], ['twopair', 'Two pair', 2], ['jacks', 'Jacks or better', 1]];
+function pkRank(cs) {
+  const rs = cs.map(c => c.r === 1 ? 14 : c.r).sort((a, b) => a - b), flush = cs.every(c => c.s === cs[0].s), cnt = new Map();
+  for (const r of rs) cnt.set(r, (cnt.get(r) || 0) + 1);
+  const gr = [...cnt].sort((a, b) => b[1] - a[1] || b[0] - a[0]), straight = gr.length === 5 && (rs[4] - rs[0] === 4 || rs.join() === '2,3,4,5,14');
+  if (straight && flush) return rs[0] === 10 ? 'royal' : 'sflush';
+  if (gr[0][1] === 4) return 'four';
+  if (gr[0][1] === 3 && gr[1][1] === 2) return 'full';
+  if (flush) return 'flush';
+  if (straight) return 'straight';
+  if (gr[0][1] === 3) return 'three';
+  if (gr[0][1] === 2 && gr[1][1] === 2) return 'twopair';
+  if (gr[0][1] === 2 && gr[0][0] >= 11) return 'jacks';
+  return null;
+}
+function pkOpen(body, tb) {
+  const S = { phase: 'bet', bet: Math.min(CS.chip, tb.limit, game.gold), cards: [], held: [false, false, false, false, false], deck: null, rank: null };
+  const felt = el('div', 'cs-felt'), pay = el('div', 'cs-pay'), row = el('div', 'cs-hand poker');
+  felt.append(pay, row, el('div', 'cs-lbl', 'Deal five cards, click the ones to keep (or press 1–5), then draw.'));
+  const ctl = el('div', 'cs-ctl'), stakeEl = el('span', 'cs-stake'), bAdd = csBtn('Add chip', () => addBet(), '', 'B'), bClear = csBtn('Clear', () => { if (S.phase === 'hold') return; S.bet = 0; S.phase = 'bet'; render(); });
+  const bGo = csBtn('Deal', () => go(), 'solid', 'Space');
+  ctl.append(csChips(), stakeEl, bAdd, bClear, bGo);
+  body.append(felt, ctl);
+  function render() {
+    pay.textContent = ''; for (const [k, n, m] of PK_PAY) { const r = el('div', S.rank === k && S.phase === 'done' ? 'hit' : ''); r.append(el('span', '', n), el('b', '', String(m * Math.max(1, S.bet)))); pay.append(r); }
+    row.textContent = '';
+    (S.cards.length ? S.cards : Array(5).fill(null)).forEach((c, i) => {
+      const e = c ? cardEl(c) : cardEl(null, true); if (S.held[i] && S.phase === 'hold') { e.classList.add('held'); e.append(el('em', '', 'HELD')); }
+      if (S.phase === 'hold') e.addEventListener('click', () => toggle(i)); row.append(e);
+    });
+    stakeEl.textContent = S.bet ? `Bet ${S.bet} gold` : 'Place a bet';
+    bAdd.hidden = bClear.hidden = S.phase === 'hold';
+    bGo.firstChild.textContent = S.phase === 'hold' ? 'Draw' : S.phase === 'done' ? 'Deal again' : 'Deal';
+    bGo.disabled = S.phase !== 'hold' && (!S.bet || S.bet > game.gold);
+  }
+  function addBet() { if (S.phase === 'hold') return; if (S.phase === 'done') { S.phase = 'bet'; S.bet = 0; } if (S.bet + CS.chip > tb.limit) return csMsg(`The table limit is ${tb.limit} gold.`); if (S.bet + CS.chip > game.gold) return csMsg('You don\'t have the gold for that.'); S.bet += CS.chip; csSound('chip'); render(); }
+  function toggle(i) { if (S.phase !== 'hold') return; S.held[i] = !S.held[i]; csSound('card'); render(); }
+  function drawNow() {
+    for (let i = 0; i < 5; i++) if (!S.held[i]) S.cards[i] = S.deck.pop();
+    S.rank = pkRank(S.cards); S.phase = 'done';
+    // the pay table is what comes back for the stake: jacks or better only returns it, two pair doubles it
+    const P = PK_PAY.find(p => p[0] === S.rank), back = P ? S.bet * P[2] : 0;
+    csPay(back);
+    if (!P) csMsg('Nothing. The dealer takes your stake.', 'bad');
+    else if (back > S.bet) { sfx('coins'); csMsg(`${P[1]}! You win ${back - S.bet} gold.`, 'good'); }
+    else csMsg(`${P[1]}: your stake comes back.`);
+    CS.onClose = null;
+    render();
+  }
+  function go() {
+    if (S.phase === 'hold') { csSound('card'); return drawNow(); }
+    if (!S.bet || !csTake(S.bet)) return csMsg('You don\'t have the gold for that bet.');
+    S.deck = newDeck(); S.cards = [S.deck.pop(), S.deck.pop(), S.deck.pop(), S.deck.pop(), S.deck.pop()]; S.held = [false, false, false, false, false]; S.phase = 'hold'; S.rank = null;
+    csSound('card'); csMsg(''); CS.onClose = drawNow; render();
+  }
+  CS.keys = { Space: go, KeyB: addBet };
+  for (let i = 0; i < 5; i++) CS.keys['Digit' + (i + 1)] = () => (S.phase === 'hold' ? toggle(i) : csSetChip(CHIPS[i]));
+  render();
+}
+
+/* ---------- the great wheel ---------- */
+function whOpen(body, tb) {
+  const S = { bets: new Map(), spinning: false, ang: 0, last: null };
+  const row = el('div', 'cs-row'), wrap = el('div', 'cs-bigwheel'), cv = el('canvas', 'cs-wheel'); cv.width = cv.height = 560; wrap.append(cv, el('i', 'cs-pointer')); row.append(wrap);
+  const side = el('div', 'cs-side'), grid = el('div', 'cs-wbets'), btns = new Map();
+  for (const v of [1, 2, 5, 10, 20, 40]) {
+    const b = el('button', 'cs-wbet'); b.style.setProperty('--c', WHEEL_COL[v]);
+    b.addEventListener('click', () => bet(v)); b.addEventListener('contextmenu', e => { e.preventDefault(); unbet(v); });
+    grid.append(b); btns.set(v, b);
+  }
+  side.append(grid, el('div', 'cs-note', 'Stake on a number and the wheel pays that many to one if it stops there: the 1 is on 24 of the 54 segments, the crown on only two, and it pays 40 to 1. Right-click to take a chip back.'));
+  row.append(side);
+  const ctl = el('div', 'cs-ctl'), stakeEl = el('span', 'cs-stake'), bSpin = csBtn('Spin the wheel', () => spin(), 'solid', 'Space');
+  ctl.append(csChips(), stakeEl, bSpin);
+  body.append(row, ctl);
+  const total = () => { let s = 0; for (const v of S.bets.values()) s += v; return s; };
+  const paint = () => { const c = cv.getContext('2d'); c.clearRect(0, 0, cv.width, cv.height); drawBigWheel(c, cv.width / 2, cv.height / 2, cv.width / 2 - 4, S.ang); };
+  function render() {
+    for (const [v, b] of btns) { b.textContent = ''; b.append(el('b', '', v === 40 ? '♛ 40' : String(v)), el('small', '', S.bets.get(v) ? `${S.bets.get(v)} gold` : `pays ${v} to 1`)); b.classList.toggle('win', S.last === v && !S.spinning); b.disabled = S.spinning; }
+    stakeEl.textContent = total() ? `${total()} gold staked` : 'No bets yet'; bSpin.disabled = S.spinning || !total();
+  }
+  function bet(v) { if (S.spinning) return; if (total() + CS.chip > tb.limit) return csMsg(`The wheel's limit is ${tb.limit} gold.`); if (!csTake(CS.chip)) return csMsg('You don\'t have the gold for that chip.'); S.bets.set(v, (S.bets.get(v) || 0) + CS.chip); S.last = null; csSound('chip'); csMsg(''); render(); }
+  function unbet(v) { if (S.spinning || !S.bets.has(v)) return; const n = S.bets.get(v), back = Math.min(n, CS.chip); csPay(back); if (n > back) S.bets.set(v, n - back); else S.bets.delete(v); render(); }
+  function settle(k) {
+    const v = WHEEL_SEGS[k], staked = total(), win = S.bets.get(v) || 0, back = win ? win * (v + 1) : 0;
+    S.bets.clear(); S.spinning = false; S.last = v; csPay(back);
+    const name = v === 40 ? 'the crown' : String(v);
+    if (back) { sfx('coins'); csMsg(`The wheel stops on ${name}. You collect ${back} gold.`, back > staked ? 'good' : ''); }
+    else csMsg(`The wheel stops on ${name}. ${pickOne(['Not your number.', 'So close. It always looks so close.', 'The attendant smiles politely.'])}`, 'bad');
+    CS.onClose = refund; render();
+  }
+  function spin() {
+    if (S.spinning || !total()) return;
+    const k = Math.floor(Math.random() * 54), st = Math.PI * 2 / 54, a0 = S.ang, jit = (Math.random() - 0.5) * st * 0.7;
+    const delta = (((-k * st + jit - a0) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2) + Math.PI * 2 * (3 + Math.floor(Math.random() * 2)), dur = 5200, t0 = performance.now();
+    S.spinning = true; S.last = null; csMsg('Round she goes…'); render();
+    const I = casinoRoomOf(CS.H); if (I && I.bigWheel) I.bigWheel.v = 5;
+    CS.onClose = () => settle(k);
+    let lastPeg = Math.floor(a0 / st);
+    const ease = x => 1 - Math.pow(1 - x, 3.2);
+    const step = now => {
+      const p = Math.min(1, (now - t0) / dur); S.ang = a0 + delta * ease(p); paint();
+      const peg = Math.floor(S.ang / st + 0.5); if (peg !== lastPeg) { lastPeg = peg; csSound('tick'); }
+      if (p < 1) CS.raf = requestAnimationFrame(step); else { CS.onClose = null; settle(k); }
+    };
+    CS.raf = requestAnimationFrame(step);
+  }
+  const refund = () => { csPay(total()); S.bets.clear(); };
+  CS.keys = { Space: spin };
+  CS.onClose = refund;
+  paint(); render();
+}
+/* ---------- baccarat: punto banco, the player's hand against the banker's, nearest nine wins ---------- */
+const bcPts = c => (c.r >= 10 ? 0 : c.r);
+const bcTot = cs => cs.reduce((t, c) => t + bcPts(c), 0) % 10;
+function bcOpen(body, tb) {
+  if (!tb.shoe || tb.shoe.length < 60) tb.shoe = newDeck(8);
+  const S = { bets: { player: 0, banker: 0, tie: 0 }, p: [], b: [], dealing: false, last: null };
+  const felt = el('div', 'cs-felt'), hands = el('div', 'cs-hands'), pRow = el('div', 'cs-hand'), bRow = el('div', 'cs-hand');
+  hands.append(pRow, bRow);
+  const areas = el('div', 'cs-areas three'), A = {};
+  for (const k of ['player', 'tie', 'banker']) { const b = el('button', 'cs-area'); b.addEventListener('click', () => bet(k)); b.addEventListener('contextmenu', e => { e.preventDefault(); unbet(k); }); areas.append(b); A[k] = b; }
+  felt.append(el('div', 'cs-lbl', 'Player pays 1 to 1 · Banker pays 1 to 1 less a twentieth · Tie pays 8 to 1, and player and banker bets stand back on a tie'), hands, areas);
+  const ctl = el('div', 'cs-ctl'), stakeEl = el('span', 'cs-stake'), bDeal = csBtn('Deal', () => deal(), 'solid', 'Space'), bAgain = csBtn('Same again', () => again());
+  ctl.append(csChips(), stakeEl, bAgain, bDeal);
+  body.append(felt, ctl);
+  const total = () => S.bets.player + S.bets.banker + S.bets.tie;
+  const draw = () => { if (tb.shoe.length < 20) { tb.shoe = newDeck(8); csMsg('The croupier breaks open a fresh shoe.'); } return tb.shoe.pop(); };
+  function render() {
+    for (const [row, cs, nm] of [[pRow, S.p, 'Player'], [bRow, S.b, 'Banker']]) { row.textContent = ''; row.append(el('span', 'cs-lbl', nm)); cs.forEach(c => row.append(cardEl(c))); if (cs.length) row.append(el('span', 'cs-val', String(bcTot(cs)))); }
+    const lab = { player: 'Player', tie: 'Tie', banker: 'Banker' }, sub = { player: 'pays 1 to 1', tie: 'pays 8 to 1', banker: '1 to 1, less 5%' };
+    for (const k in A) { A[k].textContent = ''; A[k].append(el('b', '', lab[k]), el('small', '', S.bets[k] ? `${S.bets[k]} gold` : sub[k])); A[k].disabled = S.dealing; A[k].classList.toggle('win', S.last === k && !S.dealing); }
+    stakeEl.textContent = total() ? `${total()} gold staked` : 'No bets yet';
+    bDeal.disabled = S.dealing || !total(); bAgain.disabled = S.dealing || total() > 0 || !S.prev;
+  }
+  function bet(k, amt = CS.chip) {
+    if (S.dealing) return;
+    if (total() + amt > tb.limit) return csMsg(`The table limit is ${tb.limit} gold.`);
+    if (!csTake(amt)) return csMsg('You don\'t have the gold for that chip.');
+    if (S.last) { S.p = []; S.b = []; S.last = null; }
+    S.bets[k] += amt; csSound('chip'); csMsg(''); render();
+  }
+  function unbet(k) { if (S.dealing || !S.bets[k]) return; const back = Math.min(S.bets[k], CS.chip); S.bets[k] -= back; csPay(back); render(); }
+  function again() { if (S.dealing || !S.prev || total()) return; const need = S.prev.player + S.prev.banker + S.prev.tie; if (need > game.gold) return csMsg('Not enough gold to lay the same bets again.'); for (const k in S.prev) if (S.prev[k]) bet(k, S.prev[k]); }
+  // the whole coup is decided at once by the tableau; the cards are then turned over one at a time
+  function coup() {
+    const p = [draw()], b = [draw()]; p.push(draw()); b.push(draw());
+    const order = ['p', 'b', 'p', 'b'];
+    if (bcTot(p) < 8 && bcTot(b) < 8) {
+      let p3 = null;
+      if (bcTot(p) <= 5) { p3 = draw(); p.push(p3); order.push('p'); }
+      const bt = bcTot(b), v = p3 ? bcPts(p3) : -1;
+      const bankerDraws = !p3 ? bt <= 5 : bt <= 2 || (bt === 3 && v !== 8) || (bt === 4 && v >= 2 && v <= 7) || (bt === 5 && v >= 4 && v <= 7) || (bt === 6 && (v === 6 || v === 7));
+      if (bankerDraws) { b.push(draw()); order.push('b'); }
+    }
+    return { p, b, order };
+  }
+  function settle(C) {
+    const pt = bcTot(C.p), bt = bcTot(C.b), win = pt > bt ? 'player' : bt > pt ? 'banker' : 'tie', B = S.bets, staked = total();
+    let back = 0;
+    if (win === 'tie') back = B.tie * 9 + B.player + B.banker;
+    else if (win === 'player') back = B.player * 2;
+    else back = B.banker * 2 - Math.floor(B.banker / 20);
+    S.p = C.p; S.b = C.b; S.prev = { ...B }; S.bets = { player: 0, banker: 0, tie: 0 }; S.dealing = false; S.last = win;
+    csPay(back);
+    const natural = C.p.length === 2 && C.b.length === 2 && (pt >= 8 || bt >= 8) ? ' A natural.' : '';
+    const head = win === 'tie' ? `A tie at ${pt}.` : `${win === 'player' ? 'Player' : 'Banker'} wins, ${Math.max(pt, bt)} to ${Math.min(pt, bt)}.`;
+    if (back > staked) { sfx('coins'); csMsg(`${head}${natural} You collect ${back} gold.`, 'good'); }
+    else if (back === staked) csMsg(`${head}${natural} Your stakes stand back.`);
+    else csMsg(`${head}${natural} ${back ? back + ' gold comes back to you.' : 'The croupier draws your chips in with the palette.'}`, 'bad');
+    CS.onClose = refund; render();
+  }
+  function deal() {
+    if (S.dealing || !total()) return;
+    const C = coup(); S.dealing = true; S.p = []; S.b = []; S.last = null; csMsg(''); render();
+    CS.onClose = () => settle(C);
+    csRun(async () => {
+      let ip = 0, ib = 0;
+      for (const w of C.order) { await csWait(C.order.length > 4 && (w === 'p' ? ip : ib) === 2 ? 700 : 380); csSound('card'); if (w === 'p') S.p.push(C.p[ip++]); else S.b.push(C.b[ib++]); render(); }
+      await csWait(300); CS.onClose = null; settle(C);
+    });
+  }
+  const refund = () => { csPay(total()); S.bets = { player: 0, banker: 0, tie: 0 }; };
+  CS.keys = { Space: deal };
+  CS.onClose = refund;
+  render();
+}
+csEl('cs-close').addEventListener('click', closeCasino);
+csEl('casino').addEventListener('click', (e) => { if (e.target === csEl('casino')) closeCasino(); });
+/* ==== CASINOS END ==== */
+
+/* =====================================================================
+   THE TOWN DIRECTORY: zoom the survey map in on a town and its streets appear, every building's footprint, and an
+   icon on the ones worth knowing: casinos, museums, inns, shops, temples, the castle. Filter by kind, search by
+   name, and go straight to the door.
+   ===================================================================== */
+const PLACE_CATS = {
+  gaming: { label: 'Gaming', col: '#e0b872', glyph: '♦' },
+  food: { label: 'Food & drink', col: '#e0845a', glyph: '♨' },
+  shops: { label: 'Shops & smiths', col: '#6aa8e0', glyph: '⚖' },
+  culture: { label: 'Museums & learning', col: '#c490e0', glyph: '★' },
+  worship: { label: 'Temples', col: '#e8e0c8', glyph: '✦' },
+  care: { label: 'Healers & baths', col: '#7ad0a0', glyph: '+' },
+  castle: { label: 'Castle & garrison', col: '#d05a50', glyph: '♜' },
+  trades: { label: 'Trades', col: '#b0a080', glyph: '⚒' },
+  outdoors: { label: 'Squares & parks', col: '#8fd6c4', glyph: '❀' },
+};
+const KIND_CAT = { casino: 'gaming', gaminghouse: 'gaming', inn: 'food', eatery: 'food', teahouse: 'food', brewery: 'food', bakery: 'food',
+  shop: 'shops', craftshop: 'shops', smithy: 'shops', stable: 'shops', assay: 'shops', museum: 'culture', college: 'culture', guildhall: 'culture', school: 'culture',
+  chapel: 'worship', dome: 'worship', shrine: 'worship', minaret: 'worship', greathouse: 'worship', hall: 'worship', belltower: 'worship', castlechapel: 'worship',
+  hospital: 'care', healer: 'care', undertaker: 'care', latrine: 'care', keep: 'castle', throne: 'castle', barracks: 'castle', armory: 'castle',
+  mill: 'trades', smelter: 'trades', shipwright: 'trades' };
+// grounds that aren't a building with a door: they come from the town's plan
+const LOT_PLACE = { theatre: ['culture', 'The theatre'], arena: ['culture', 'The arena'], markethall: ['shops', 'The covered market'], bathhouse: ['care', 'The public baths'],
+  park: ['outdoors', 'A park'], cemetery: ['outdoors', 'The graveyard'], garden: ['outdoors', 'A garden'], square: ['outdoors', 'A square'] };
+// what the grand lots become, for towns whose streets you haven't seen close up yet
+const LOT_HOUSE = { casino: ['gaming', 'Casino', 'casino'], gaminghouse: ['gaming', 'Gaming house', 'gaminghouse'], museum: ['culture', 'Museum', 'museum'], grandmuseum: ['culture', 'Royal museum', 'museum'],
+  college: ['culture', 'College and library', 'college'], guildhall: ['culture', 'Guildhall', 'guildhall'], eatery: ['food', 'Eating house', 'eatery'], brewery: ['food', 'Brewery', 'brewery'],
+  teahouse: ['food', 'Teahouse', 'teahouse'], hospital: ['care', 'Hospital', 'hospital'], shrine: ['worship', 'Shrine', 'shrine'], castle: ['castle', 'The castle', 'throne'] };
+const KIND_WORDS = { casino: 'casino gambling roulette blackjack baccarat poker cards dice wheel', gaminghouse: 'gaming house gambling dice cards', inn: 'inn tavern pub ale beer room bed', eatery: 'food cookshop eating restaurant kitchen trattoria noodle',
+  teahouse: 'tea', brewery: 'brewery beer ale sake', bakery: 'bakery bread baker', shop: 'general goods trader merchant shop supplies', smithy: 'smith blacksmith smithy weapons armour sword', stable: 'stables horse',
+  assay: 'assay gold dust', museum: 'museum exhibits dragon', college: 'college library books scholars', guildhall: 'guild guildhall', school: 'school', chapel: 'church chapel temple cathedral',
+  dome: 'temple mosque', shrine: 'shrine', minaret: 'mosque minaret', hall: 'hall temple', belltower: 'bell tower campanile', hospital: 'hospital physician doctor', healer: 'healer doctor medicine herbs',
+  undertaker: 'undertaker', latrine: 'latrine toilet privy', keep: 'keep castle royal', throne: 'castle throne court king queen lord', barracks: 'barracks garrison soldiers', armory: 'armoury armory weapons',
+  mill: 'mill miller', smelter: 'smelter', shipwright: 'shipyard shipwright', store: 'store warehouse granary' };
+const PLACE_KEY = 'meridian.placeCats';
+let placeCats = new Set(Object.keys(PLACE_CATS).filter(k => k !== 'trades')), placeQ = '', placeHits = [];
+try { const v = JSON.parse(localStorage.getItem(PLACE_KEY) || 'null'); if (Array.isArray(v)) placeCats = new Set(v.filter(k => PLACE_CATS[k])); } catch (err) { /* no storage: all shown */ }
+const layoutSeen = new Set();
+function hasLayout(s) { return layoutSeen.has(s.id) || towns.has(s.id); }
+function layoutFor(s) { layoutSeen.add(s.id); return G.settlementLayout(s); }
+function placeName(H) { return H.name || (H.kind === 'chapel' ? 'The chapel' : H.kind === 'hall' ? 'The meeting hall' : H.kind === 'store' ? 'A storehouse' : PLACE_CATS[KIND_CAT[H.kind]].label); }
+function placeSub(H) { return H.kind === 'craftshop' ? (H.craft || 'Craftsman') : (typeof LABEL_SUB !== 'undefined' && LABEL_SUB[H.kind]) || { inn: 'Inn · rooms and ale', shop: 'General goods', smithy: 'Smithy', stable: 'Stables', keep: 'The keep', throne: 'Great hall', armory: 'Armoury', chapel: 'Chapel', belltower: 'Bell tower' }[H.kind] || PLACE_CATS[KIND_CAT[H.kind]].label; }
+// every place worth finding in one town: its buildings if you've seen its streets, otherwise what the town is known for
+let townPlaces = function (s, full) {
+  const out = [], plan = G.townPlan(s);
+  if (full || hasLayout(s)) {
+    const L = layoutFor(s);
+    for (const H of L.houses) { const cat = KIND_CAT[H.kind]; if (cat && !(H.kind === 'store' && !H.name)) out.push({ cat, kind: H.kind, name: placeName(H), sub: placeSub(H), x: H.x, z: H.z, H, s }); }
+    for (const lot of plan.lots) { const lp = LOT_PLACE[lot.type]; if (lp) out.push({ cat: lp[0], kind: lot.type, name: lp[1], sub: PLACE_CATS[lp[0]].label, x: lot.x, z: lot.z, s }); }
+  } else {
+    for (const lot of plan.lots) { const lh = LOT_HOUSE[lot.type] || LOT_PLACE[lot.type]; if (lh) out.push({ cat: lh[0], kind: lh[2] || lot.type, name: lh[1], sub: `in ${s.name}`, x: lot.x, z: lot.z, s, lot: true }); }
+  }
+  for (const p of out) p.words = (p.name + ' ' + p.sub + ' ' + (KIND_WORDS[p.kind] || p.kind) + ' ' + PLACE_CATS[p.cat].label + ' ' + s.name).toLowerCase();
+  return out;
+}
+const placeShown = p => placeCats.has(p.cat) && (!placeQ || placeQ.split(/\s+/).every(w => p.words.includes(w)));
+function placeGlyph(ctx, x, y, r, cat, dim) {
+  const C = PLACE_CATS[cat];
+  ctx.globalAlpha = dim ? 0.45 : 1;
+  ctx.fillStyle = C.col; ctx.strokeStyle = '#0b1113'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  if (r >= 5) { ctx.fillStyle = '#0b1113'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `700 ${Math.round(r * 1.25)}px system-ui, "Apple Symbols", sans-serif`; ctx.fillText(C.glyph, x, y + 0.5); }
+  ctx.globalAlpha = 1;
+}
+function drawPlaces(ctx, w, h, sc, cx, cz, range) {
+  placeHits = [];
+  if (!started || range > 3000) return;
+  const foot = range <= 1500, r = range <= 400 ? 8 : range <= 750 ? 6.5 : range <= 1500 ? 5 : 3.6, taken = [];
+  const labelled = p => range <= 750 || (range <= 1500 && ['gaming', 'culture', 'castle', 'worship'].includes(p.cat));
+  ctx.save();
+  for (const { s } of settlementsNear(cx, cz, range * 0.75 + 900)) {
+    if (!game.known.has(s.id)) continue;
+    const L = layoutFor(s);
+    if (foot) {
+      ctx.fillStyle = 'rgba(232, 220, 194, 0.82)'; ctx.strokeStyle = 'rgba(40, 30, 20, 0.85)'; ctx.lineWidth = 1;
+      for (const H of L.houses) {
+        const x = w / 2 + (H.x - cx) * sc, y = h / 2 + (H.z - cz) * sc;
+        if (x < -40 || y < -40 || x > w + 40 || y > h + 40) continue;
+        ctx.save(); ctx.translate(x, y); ctx.rotate(-H.rot);
+        const hw = H.w * sc, hd = (H.round ? H.w : H.dp) * sc;
+        if (H.round) { ctx.beginPath(); ctx.arc(0, 0, hw / 2, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); } else { ctx.fillRect(-hw / 2, -hd / 2, hw, hd); ctx.strokeRect(-hw / 2, -hd / 2, hw, hd); }
+        ctx.restore();
+      }
+    }
+    for (const p of townPlaces(s)) {
+      if (!placeShown(p)) continue;
+      const x = w / 2 + (p.x - cx) * sc, y = h / 2 + (p.z - cz) * sc;
+      if (x < -10 || y < -10 || x > w + 10 || y > h + 10) continue;
+      placeGlyph(ctx, x, y, r, p.cat, false);
+      placeHits.push({ x, y, r: Math.max(7, r + 3), p });
+      taken.push([x - r, y - r, x + r, y + r]);
+      if (labelled(p)) {
+        ctx.font = `600 ${range <= 400 ? 13 : 12}px "Bricolage Grotesque", system-ui, sans-serif`;
+        const tw = ctx.measureText(p.name).width, bx = x + r + 4, box = [bx, y - 8, bx + tw, y + 8];
+        if (taken.some(t => box[0] < t[2] && box[2] > t[0] && box[1] < t[3] && box[3] > t[1])) continue;
+        taken.push(box);
+        ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(11,17,19,0.85)'; ctx.strokeText(p.name, bx, y); ctx.fillStyle = '#ece9df'; ctx.fillText(p.name, bx, y);
+      }
+    }
+  }
+  ctx.restore();
+}
+function placeHitAt(px, py) { let best = null, bd = 1e9; for (const q of placeHits) { const d = Math.hypot(q.x - px, q.y - py); if (d < q.r && d < bd) { bd = d; best = q.p; } } return best; }
+// the door of a place: for a town you only know of, find the building now
+function placeDoor(p) {
+  let H = p.H;
+  if (!H && p.lot) { const L = layoutFor(p.s); let bd = 60; for (const q of L.houses) { if (q.kind !== p.kind && !(p.kind === 'throne' && q.kind === 'keep')) continue; const d = Math.hypot(q.x - p.x, q.z - p.z); if (d < bd) { bd = d; H = q; } } }
+  if (H && H.door) { const [dx, dz] = H.door; return { x: dx + Math.sin(H.rot) * 2.2, z: dz + Math.cos(H.rot) * 2.2, yaw: H.rot, name: placeName(H) }; }
+  return { x: p.x, z: p.z, yaw: null, name: p.name };
+}
+function goPlace(p) {
+  if (player.mode === 'boat') return toast('Go ashore first (E near land).');
+  const D = placeDoor(p);
+  closeMap();
+  if (player.mode !== 'walk') setMode('walk');
+  travelTo(D.x, D.z, null, `${D.name}, ${p.s.name}`);
+  if (D.yaw !== null) { player.yaw = D.yaw; player.pitch = 0; }
+}
+function showPlace(p) { bigView = { x: p.x, z: p.z }; bigIdx = 0; requestBig(); drawBig(); renderPlaceList(); }
+function renderPlaceCats() {
+  const box = $('pl-cats'); box.textContent = '';
+  const all = el('button', '', 'All'); all.setAttribute('aria-pressed', String(placeCats.size === Object.keys(PLACE_CATS).length));
+  all.addEventListener('click', () => { placeCats = placeCats.size === Object.keys(PLACE_CATS).length ? new Set() : new Set(Object.keys(PLACE_CATS)); placesChanged(); });
+  box.append(all);
+  for (const [k, C] of Object.entries(PLACE_CATS)) {
+    const b = el('button'); const i = el('i'); i.style.background = C.col; b.append(i, C.label); b.setAttribute('aria-pressed', String(placeCats.has(k)));
+    b.title = 'Show only ' + C.label.toLowerCase() + ' (click again to add others)';
+    b.addEventListener('click', () => { if (placeCats.size === Object.keys(PLACE_CATS).length) placeCats = new Set([k]); else if (placeCats.has(k)) placeCats.delete(k); else placeCats.add(k); placesChanged(); });
+    box.append(b);
+  }
+}
+function placesChanged() { try { localStorage.setItem(PLACE_KEY, JSON.stringify([...placeCats])); } catch (err) { /* ignore */ } renderPlaceCats(); renderPlaceList(); drawBig(); }
+// the directory: known towns round the middle of the map, the nearest places first
+function renderPlaceList() {
+  const box = $('place-list'); if (!box || bigmap.hidden) return;
+  box.textContent = '';
+  const V = viewOf(), p0 = player.pos, reach = Math.max(BIG_RANGES[bigIdx] * 0.75, placeQ ? 30000 : 6000), rows = [];
+  for (const { s } of settlementsNear(V.x, V.z, reach)) { if (!game.known.has(s.id)) continue; for (const q of townPlaces(s)) if (placeShown(q)) rows.push(q); }
+  rows.forEach(q => { q.dv = Math.hypot(q.x - V.x, q.z - V.z); });
+  rows.sort((a, b) => a.dv - b.dv);
+  if (!rows.length) { box.append(el('div', 'sub', game.known.size ? (placeQ ? `Nothing called “${placeQ}” in the towns you know of nearby.` : 'No places of that kind near here. Try another kind, or move the map.') : 'Hear of a town, or find one, and its places appear here.')); return; }
+  for (const q of rows.slice(0, 60)) {
+    const d = Math.hypot(q.x - p0.x, q.z - p0.z);
+    mapRow(box, PLACE_CATS[q.cat].col, q.name, `${q.lot ? '' : q.sub + ' · '}${q.s.name} · ${fmtDist(d)} ${bearingWord(q.x - p0.x, q.z - p0.z)}`,
+      [['Show', () => showPlace(q)], ['Go', () => goPlace(q)], ['Mark', () => { const D = placeDoor(q); addPin(D.x, D.z, 'star', `${D.name}, ${q.s.name}`); drawBig(); }]]);
+  }
+  if (rows.length > 60) box.append(el('div', 'sub', `${rows.length - 60} more further off. Search or filter to narrow it down.`));
+}
+// while the map is open, learn the streets of the known towns near the middle of it, one town at a time
+setInterval(() => {
+  if (bigmap.hidden || !started) return;
+  const V = viewOf();
+  for (const { s, d } of settlementsNear(V.x, V.z, 7000)) if (game.known.has(s.id) && !hasLayout(s) && d < 7000) { layoutFor(s); renderPlaceList(); drawBig(); return; }
+}, 250);
+$('pl-q').addEventListener('input', () => { placeQ = $('pl-q').value.trim().toLowerCase(); renderPlaceList(); drawBig(); });
+$('pl-q').addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Escape') { $('pl-q').value = ''; placeQ = ''; renderPlaceList(); drawBig(); } });
+const _renderMapListsD = renderMapLists;
+renderMapLists = function () { _renderMapListsD(); renderPlaceCats(); renderPlaceList(); };
+/* ==== TOWN DIRECTORY END ==== */
+
+/* =====================================================================
+   LAMPLIGHT: the dozen nearest lights are real and fall on walls, faces and cobbles; every other street lamp in town
+   still throws a warm pool on the ground beneath it and a soft halo round its glass, so a street at night reads as lit
+   all the way down, not just where you stand.
+   ===================================================================== */
+const lampGlowTex = (() => {
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const g = c.getContext('2d'), gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.25, 'rgba(255,255,255,0.55)'); gr.addColorStop(0.6, 'rgba(255,255,255,0.14)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+})();
+const lampPoolMat = new THREE.MeshBasicMaterial({ map: lampGlowTex, color: 0xffa54e, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4, toneMapped: false });
+const lampHaloMat = new THREE.PointsMaterial({ map: lampGlowTex, color: 0xffc47e, size: 1.5, sizeAttenuation: true, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
+const LAMP_POOL_GEO = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+function buildLampGlow(t) {
+  const Ls = (t.layout && t.layout.lamps) || [];
+  if (!Ls.length || t.lampGlow) return;
+  const im = new THREE.InstancedMesh(LAMP_POOL_GEO, lampPoolMat, Ls.length), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), nrm = new THREE.Vector3(), pos = new THREE.Vector3(), scl = new THREE.Vector3();
+  const pts = new Float32Array(Ls.length * 3), e = 2.5;
+  Ls.forEach((l, i) => {
+    const g = l[3] !== undefined ? l[3] : hAt(l[0], l[2]), hgt = Math.max(1.4, l[1] - g), rad = Math.min(12, hgt * 3.1);
+    // lie the pool along the slope of the street, not flat through it
+    nrm.set(-(hAt(l[0] + e, l[2]) - hAt(l[0] - e, l[2])) / (2 * e), 1, -(hAt(l[0], l[2] + e) - hAt(l[0], l[2] - e)) / (2 * e)).normalize();
+    q.setFromUnitVectors(up, nrm);
+    m4.compose(pos.set(l[0], g + 0.08, l[2]), q, scl.set(rad, 1, rad)); im.setMatrixAt(i, m4);
+    pts[i * 3] = l[0]; pts[i * 3 + 1] = l[1] - 0.1; pts[i * 3 + 2] = l[2];
+  });
+  im.frustumCulled = false; im.renderOrder = 2;
+  const pg = new THREE.BufferGeometry(); pg.setAttribute('position', new THREE.BufferAttribute(pts, 3));
+  const halo = new THREE.Points(pg, lampHaloMat); halo.frustumCulled = false; halo.renderOrder = 3;
+  im.visible = halo.visible = false;
+  scene.add(im, halo);
+  t.lampGlow = [im, halo];
+}
+const _spawnTownL = spawnTown;
+spawnTown = function (s) { const out = _spawnTownL(s); const t = towns.get(s.id); if (t) buildLampGlow(t); return out; };
+const _despawnTownL = despawnTown;
+despawnTown = function (t) { if (t.lampGlow) { for (const o of t.lampGlow) { scene.remove(o); o.geometry !== LAMP_POOL_GEO && o.geometry.dispose(); if (o.isInstancedMesh) o.dispose(); } t.lampGlow = null; } return _despawnTownL(t); };
+const _updateLightPoolL = updateLightPool;
+updateLightPool = function () {
+  _updateLightPoolL();
+  // lit from dusk, brighter in rain and fog when the air carries the light
+  const on = 1 - ss(-0.06, 0.08, sunDir.y);
+  lampPoolMat.opacity = 0.42 * on; lampHaloMat.opacity = 0.85 * on;
+  for (const t of towns.values()) { if (!t.lampGlow && t.layout) buildLampGlow(t); if (t.lampGlow) for (const o of t.lampGlow) o.visible = on > 0.01; }
+};
+// the fountains, wells and drinking fountains are places too
+const _townPlacesF = townPlaces;
+townPlaces = function (s, full) {
+  const out = _townPlacesF(s, full);
+  if (full || hasLayout(s)) {
+    const L = layoutFor(s), seen = new Set();
+    const add = (type, x, z) => { const k = Math.round(x) + ',' + Math.round(z); if (seen.has(k)) return; seen.add(k); const name = { fountain: 'Fountain', drink: 'Drinking fountain', well: 'Well' }[type]; out.push({ cat: 'outdoors', kind: type, name, sub: type === 'drink' ? 'Fresh water' : 'Water', x, z, s, words: `${name} water drink ${type} ${s.name}`.toLowerCase() }); };
+    for (const lb of L.labels) if (lb.type === 'fountain') add('fountain', lb.x, lb.z);
+    for (const f of L.feats || []) add(f.type, f.x, f.z);
+  }
+  return out;
+};
+/* ==== LAMPLIGHT END ==== */
+
+/* =====================================================================
+   PEOPLE GO ROUND BUILDINGS: someone running from you, or after you, looks ahead and turns for the nearest clear way
+   past a wall, and nobody in a fight or a panic ever ends up inside one.
+   ===================================================================== */
+const NAV_CELL = 16;
+function navGrid(t) {
+  if (t.navGrid) return t.navGrid;
+  const G2 = new Map();
+  for (const B of navBoxes(t)) {
+    const r = Math.hypot(B.hw, B.hd);
+    for (let i = Math.floor((B.H.x - r) / NAV_CELL); i <= Math.floor((B.H.x + r) / NAV_CELL); i++)
+      for (let j = Math.floor((B.H.z - r) / NAV_CELL); j <= Math.floor((B.H.z + r) / NAV_CELL); j++) { const k = i + ',' + j; (G2.get(k) || G2.set(k, []).get(k)).push(B); }
+  }
+  return (t.navGrid = G2);
+}
+function navBoxAt(x, z) {
+  for (const t of towns.values()) {
+    if (Math.abs(x - t.s.x) > t.s.r * 2.8 || Math.abs(z - t.s.z) > t.s.r * 2.8) continue;
+    const L = navGrid(t).get(Math.floor(x / NAV_CELL) + ',' + Math.floor(z / NAV_CELL));
+    if (L) for (const B of L) if (inBox(B, x, z)) return B;
+  }
+  return null;
+}
+function npcBlocked(x, z) { return !!navBoxAt(x, z) || encBlocked(x, z); }
+// the heading nearest to the one wanted with a clear run of a few metres ahead, keeping to the side already chosen
+function steerClear(a, want) {
+  // caught indoors: out by the door first
+  const inB = navBoxAt(a.x, a.z);
+  if (inB && inB.H.door) { const [dx, dz] = inB.H.door; return Math.atan2(dx + Math.sin(inB.H.rot) * 1.5 - a.x, dz + Math.cos(inB.H.rot) * 1.5 - a.z); }
+  const clear = h => { const sx = Math.sin(h), cz = Math.cos(h); return !npcBlocked(a.x + sx * 1.1, a.z + cz * 1.1) && !npcBlocked(a.x + sx * 2.4, a.z + cz * 2.4) && !npcBlocked(a.x + sx * 3.8, a.z + cz * 3.8); };
+  if (clear(want)) { a.steerSide = 0; return want; }
+  const first = a.steerSide || (Math.sin(want - a.heading) >= 0 ? 1 : -1);
+  for (const off of [0.4, 0.8, 1.2, 1.6, 2.0, 2.5, 3.0]) for (const sg of [first, -first]) { const h = want + off * sg; if (clear(h)) { a.steerSide = sg; return h; } }
+  return want + Math.PI;
+}
+const _updateEncPersonN = updateEncPerson;
+updateEncPerson = function (a, dt) {
+  const x0 = a.x, z0 = a.z, was = a.dead ? true : npcBlocked(x0, z0);
+  _updateEncPersonN(a, dt);
+  if (a.dead || was || (a.x === x0 && a.z === z0) || !npcBlocked(a.x, a.z)) return;
+  // slide along the wall if one way is open, otherwise stop short of it
+  if (!npcBlocked(a.x, z0)) a.z = z0; else if (!npcBlocked(x0, a.z)) a.x = x0; else { a.x = x0; a.z = z0; }
+  a.y = Math.max(hAt(a.x, a.z), -0.3); a.g.position.set(a.x, a.y, a.z);
+};
+/* ==== PEOPLE GO ROUND BUILDINGS END ==== */
 </script>
